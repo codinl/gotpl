@@ -1,10 +1,10 @@
 # gotpl
-go语言模板。基于gorazor（https://github.com/sipin/gorazor）开发。
+go语言模板引擎。基于[gorazor](https://github.com/sipin/gorazor)开发。
 
 # 特性
 * 简洁优雅
 * 模板继承
-* html中插入原生go语言
+* 原生go语言
 * 模块，组件
 
 # 原生go语句
