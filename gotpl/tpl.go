@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
-	"os"
 )
 
 type Tpl struct {
@@ -176,9 +176,9 @@ func (tpl *Tpl) buildFile() {
 }
 
 func (tpl *Tpl) writeFile(text string) error {
-	outpath := tplDir+TMP_DIR+tpl.Name+TMP_EXT
+	outpath := tplDir + TMP_DIR + tpl.Name + TMP_EXT
 
-	outdir := filepath.Dir(tplDir+TMP_DIR)
+	outdir := filepath.Dir(tplDir + TMP_DIR)
 	if !exists(outdir) {
 		os.MkdirAll(outdir, 0775)
 	}
@@ -270,7 +270,7 @@ func clearBlocks(text string) string {
 	}
 
 	scope := 1
-	for i:=startPos_1+1; i<len(text_1); i++ {
+	for i := startPos_1 + 1; i < len(text_1); i++ {
 		switch text_1[i] {
 		case '{':
 			scope++
@@ -285,7 +285,7 @@ func clearBlocks(text string) string {
 
 	buf += text_1[startPos_1+1:endPos] + text_1[endPos+1:]
 
-	return  clearBlocks(buf)
+	return clearBlocks(buf)
 }
 
 func replaceSections(text string) string {
@@ -312,7 +312,7 @@ func replaceSections(text string) string {
 
 	secName := ""
 	scope := -1
-	for i:=startPos_1; i<len(text_1); i++ {
+	for i := startPos_1; i < len(text_1); i++ {
 		switch text_1[i] {
 		case '(':
 			if scope < 0 {
@@ -341,7 +341,7 @@ func replaceSections(text string) string {
 
 	buf += text_1[startPos_1+1:endPos] + text_1[endPos+1:]
 
-	return  replaceSections(buf)
+	return replaceSections(buf)
 }
 
 func (tpl *Tpl) isRoot() bool {

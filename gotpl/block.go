@@ -25,9 +25,8 @@ type Node struct {
 	Type     int
 	StartPos int
 	EndPos   int
-	Content string
+	Content  string
 	Name     string
 	Children []*Node
-	Parent	 *Node
+	Parent   *Node
 }
-

@@ -1,23 +1,22 @@
 package gotpl
 
 import (
-	"fmt"
-	"strings"
-	"io/ioutil"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"strings"
 )
 
 type Section struct {
 	StartPos int
 	EndPos   int
-	Content string
+	Content  string
 	Name     string
 }
 
 func genSections(tplDir string) (map[string]*Section, error) {
 	dir := tplDir + SEC_DIR
 	if !exists(dir) {
-		fmt.Println("dir", tplDir + SEC_DIR)
 		return nil, errors.New("dir not exists")
 	}
 
@@ -59,7 +58,7 @@ func findSections(sections map[string]*Section, text string) (map[string]*Sectio
 				scope_2 := -1
 				section := &Section{}
 				name := ""
-				for j:=i; j<len(text); j++ {
+				for j := i; j < len(text); j++ {
 					i++
 					switch text[j] {
 					case '(':
@@ -70,7 +69,7 @@ func findSections(sections map[string]*Section, text string) (map[string]*Sectio
 							section.Name = strings.ToLower(strings.TrimSpace(name))
 							section.StartPos = start_pos
 						}
-					case ')':// @section Name()
+					case ')': // @section Name()
 						scope_1--
 					case '{':
 						if scope_2 < 0 {
@@ -78,9 +77,9 @@ func findSections(sections map[string]*Section, text string) (map[string]*Sectio
 						}
 						scope_2++
 						if scope_2 == 1 { // @section Name() {
-							i_content_start = (i+1)
+							i_content_start = (i + 1)
 						}
-					case '}':  // @section Name(){ ... }
+					case '}': // @section Name(){ ... }
 						scope_2--
 					}
 					if scope_2 == 0 {

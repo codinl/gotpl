@@ -133,7 +133,12 @@ func generate(input string, output string, Options Option) error {
 	if err != nil || compiler == nil {
 		panic(err)
 	}
+
 	err = ioutil.WriteFile(output, []byte(compiler.buf), 0644)
+	if err != nil {
+		panic(err)
+	}
+
 	cmd := exec.Command("gofmt", "-w", output)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -142,10 +147,10 @@ func generate(input string, output string, Options Option) error {
 		return err
 	}
 
-//	if Options["Debug"] == true {
-////		content, _ := ioutil.ReadFile(output)
-////		fmt.Println(string(content))
-//	}
+	if Options["Debug"] == true {
+		content, _ := ioutil.ReadFile(output)
+		fmt.Println(string(content))
+	}
 
 	return err
 }

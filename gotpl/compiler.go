@@ -338,11 +338,10 @@ func (cp *Compiler) visit() {
 	// genPart() -> cp.buf
 	cp.genPart()
 
-	pack := cp.dir
 	fun := cp.file
 
 	cp.imports[`"bytes"`] = true
-	head := "package " + pack + "\n\n import (\n"
+	head := "package tpl\n\n import (\n"
 	for k, v := range cp.imports {
 		if v {
 			head += k + "\n"

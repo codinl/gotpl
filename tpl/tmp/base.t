@@ -1,8 +1,5 @@
 <html>
 
-curPage int    <div>curPage is: @curPage </div>
-
-
 
     aaaa
 
@@ -13,6 +10,9 @@ curPage int    <div>curPage is: @curPage </div>
     
         ccc
     
+
+
+curPage int    <div>curPage is: @curPage </div>
 
 
 </html>
