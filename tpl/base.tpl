@@ -1,7 +1,5 @@
 <html>
 
-@section Pagination(curPage int)
-
 @block aa {
     aaaa
 
@@ -13,5 +11,7 @@
         ccc
     }
 }
+
+@section Pagination(curPage int)
 
 </html>
