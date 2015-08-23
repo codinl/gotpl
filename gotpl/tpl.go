@@ -66,15 +66,6 @@ func (tpl *Tpl) buildBlock() error {
 						if inNode != nil {
 							if _, ok := tokens[inNode.Name]; ok {
 								tokens[inNode.Name].Scope--
-//								if tokens[inNode.Name].Scope == 0 {
-//									if parentNode != nil {
-//										if _, ok := tokens[parentNode.Name]; ok {
-//											tokens[parentNode.Name].Scope--
-//										}
-//									}
-//								} else {
-//									tokens[inNode.Name].Scope--
-//								}
 							}
 						}
 					case '@':
@@ -165,7 +156,6 @@ func (tpl *Tpl) buildFile() {
 				if i == 0 {
 					buf += tpl.Parent.Content[:targetBlock.StartPos] + b.Content
 				} else {
-//					fmt.Println("-------------",string(tpl.Parent.Content[lastBlock.EndPos+1:]))
 					buf += tpl.Parent.Content[lastBlock.EndPos+1:targetBlock.StartPos] + b.Content
 				}
 				if i == len(tpl.Blocks)-1 {
