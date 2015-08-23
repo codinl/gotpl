@@ -27,6 +27,7 @@ func (tpl *Tpl) buildBlock() error {
 	text := tpl.Content
 
 	tpl.Block = &BlockNode{Name: "root", Children: map[string]*BlockNode{}}
+
 	var inNode *BlockNode
 	var parentNode *BlockNode
 
@@ -40,48 +41,59 @@ func (tpl *Tpl) buildBlock() error {
 				i += 6
 				i_name_start := i
 				i_name_end := 0
-				open := 0
-				hasChild := false
+				scope := 0
+				L:
 				for j := i; j < len(text); j++ {
 					i++
 					switch text[j] {
 					case '{':
-						open++
-						if open == 1 { // @block name {
+						scope++
+						if scope == 1 { // @block name {
 							i_name_end = j
 							name := text[i_name_start:i_name_end]
 							if parentNode == nil {
 								parentNode = tpl.Block
 							}
 							blockName := strings.TrimSpace(name)
-							inNode = &BlockNode{StartPos: start_pos, EndPos: j, Name: blockName, Parent: parentNode, Children: map[string]*BlockNode{}}
+							inNode = &BlockNode{StartPos: start_pos, Name: blockName, Parent: parentNode, Children: map[string]*BlockNode{}}
 							parentNode.Children[blockName] = inNode
-							tokens[blockName] = &BlockToken{Name: blockName, Scope: 0, StartPos: i_name_end + 1}
+							tokens[blockName] = &BlockToken{Name: blockName, StartPos: i_name_end+1, EndPos:0}
 							tpl.Blocks = append(tpl.Blocks, inNode)
 						}
 						tokens[inNode.Name].Scope++
 					case '}':
-						open--
-						if _, ok := tokens[inNode.Name]; ok {
-							tokens[inNode.Name].Scope--
+						scope--
+						if inNode != nil {
+							if _, ok := tokens[inNode.Name]; ok {
+								tokens[inNode.Name].Scope--
+//								if tokens[inNode.Name].Scope == 0 {
+//									if parentNode != nil {
+//										if _, ok := tokens[parentNode.Name]; ok {
+//											tokens[parentNode.Name].Scope--
+//										}
+//									}
+//								} else {
+//									tokens[inNode.Name].Scope--
+//								}
+							}
 						}
 					case '@':
 						if text[j+1:j+6] == "block" {
 							if _, ok := tokens[inNode.Name]; ok {
-								if tokens[inNode.Name].Scope == 1 { // 上一级还没有关闭 children
+								if tokens[inNode.Name].Scope == 1 { // 上一级还没有关闭
 									parentNode = inNode
 								}
 							}
 							i = j - 1
-							hasChild = true
+							break L
 						}
+					default:
+
 					}
-					if hasChild {
-						break
-					}
+
 					if inNode != nil {
 						if _, ok := tokens[inNode.Name]; ok {
-							if tokens[inNode.Name].Scope == 0 {
+							if tokens[inNode.Name].Scope == 0 && tokens[inNode.Name].EndPos == 0 {
 								tokens[inNode.Name].EndPos = j
 								inNode.EndPos = j
 								inNode.Content = text[tokens[inNode.Name].StartPos:j]
@@ -153,6 +165,7 @@ func (tpl *Tpl) buildFile() {
 				if i == 0 {
 					buf += tpl.Parent.Content[:targetBlock.StartPos] + b.Content
 				} else {
+//					fmt.Println("-------------",string(tpl.Parent.Content[lastBlock.EndPos+1:]))
 					buf += tpl.Parent.Content[lastBlock.EndPos+1:targetBlock.StartPos] + b.Content
 				}
 				if i == len(tpl.Blocks)-1 {
