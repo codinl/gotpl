@@ -137,14 +137,15 @@ func (cp *Compiler) visitFirstNode(node *Ast) {
 			if s.Name != nil {
 				v = s.Name.Name + " " + v
 			}
-			parts := strings.SplitN(v, "/", -1)
-			if len(parts) >= 2 && parts[len(parts)-2] == "layout" {
-				cp.layout = strings.Replace(v, "\"", "", -1)
-				dir := strings.Join(parts[0:len(parts)-1], "/") + "\""
-				cp.imports[dir] = true
-			} else {
-				cp.imports[v] = true
-			}
+			cp.imports[v] = true
+		}
+	}
+
+	lines := strings.SplitN(first, "\n", -1)
+	for _, l := range lines {
+		l = strings.TrimSpace(l)
+		if strings.HasPrefix(l, "var") {
+			cp.params = append(cp.params, l[4:])
 		}
 	}
 }
@@ -154,7 +155,7 @@ func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, isHomo boo
 	end := ""
 	ppNotExp := true
 	ppChildCnt := len(parent.Children)
-	pack := cp.dir
+	//	pack := cp.dir
 	htmlEsc := cp.options["htmlEscape"]
 	if parent.Parent != nil && parent.Parent.Mode == EXP {
 		ppNotExp = false
@@ -162,26 +163,8 @@ func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, isHomo boo
 	val := getValStr(child)
 	if htmlEsc == nil {
 		if ppNotExp && idx == 0 && isHomo {
-			needEsape := true
-			switch {
-			case val == "helper" || val == "html" || val == "raw":
-				needEsape = false
-			case pack == "layout":
-				needEsape = true
-				for _, param := range cp.params {
-					if strings.HasPrefix(param, val+" ") {
-						needEsape = false
-						break
-					}
-				}
-			}
-
-			if needEsape {
-				start += "gotpl.HTMLEscape("
-				cp.imports[Namespace] = true
-			} else {
-				start += "("
-			}
+			start += "gotpl.HTMLEscape("
+			cp.imports[Namespace] = true
 		}
 		if ppNotExp && idx == ppChildCnt-1 && isHomo {
 			end += ")"
