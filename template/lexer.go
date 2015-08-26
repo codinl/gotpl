@@ -1,4 +1,4 @@
-package gotpl
+package template
 
 import (
 	"fmt"
@@ -11,16 +11,16 @@ const (
 	AT
 	ASSIGN_OPERATOR
 	AT_COLON
-	AT_STAR_CLOSE
-	AT_STAR_OPEN
+	AT_STAR_CLOSE         // *@
+	AT_STAR_OPEN          // @*
 	BACKSLASH
-	BRACE_CLOSE
-	BRACE_OPEN
+	BRACE_CLOSE           // }
+	BRACE_OPEN            // {
 	CONTENT
 	EMAIL
-	ESCAPED_QUOTE
-	HARD_PAREN_CLOSE
-	HARD_PAREN_OPEN
+	ESCAPED_QUOTE         // \"
+	HARD_PAREN_CLOSE      // ]
+	HARD_PAREN_OPEN       // [
 	HTML_TAG_OPEN
 	HTML_TAG_CLOSE
 	HTML_TAG_VOID_CLOSE
@@ -30,19 +30,21 @@ const (
 	NEWLINE
 	NUMERIC_CONTENT
 	OPERATOR
-	PAREN_CLOSE
-	PAREN_OPEN
+	PAREN_CLOSE           // )
+	PAREN_OPEN            // (
 	PERIOD
-	SINGLE_QUOTE
-	DOUBLE_QUOTE
+	SINGLE_QUOTE          // '
+	DOUBLE_QUOTE          // "
 	TEXT_TAG_CLOSE
 	TEXT_TAG_OPEN
 	COMMENT_TAG_OPEN
 	COMMENT_TAG_CLOSE
 	WHITESPACE
+	AT_BLOCK
+	AT_SECTION
 )
 
-var typeStr = [...]string{
+var TokenTypeNames = [...]string{
 	"UNDEF", "AT", "ASSIGN_OPERATOR", "AT_COLON",
 	"AT_STAR_CLOSE", "AT_STAR_OPEN", "BACKSLASH",
 	"BRACE_CLOSE", "BRACE_OPEN", "CONTENT",
@@ -53,13 +55,8 @@ var typeStr = [...]string{
 	"NEWLINE", "NUMERIC_CONTENT", "OPERATOR",
 	"PAREN_CLOSE", "PAREN_OPEN", "PERIOD",
 	"SINGLE_QUOTE", "DOUBLE_QUOTE", "TEXT_TAG_CLOSE",
-	"TEXT_TAG_OPEN", "COMMENT_TAG_OPEN", "COMMENT_TAG_CLOSE", "WHITESPACE"}
-
-// Option have following options:
-//   Debug bool
-//   Watch bool
-//   NameNotChange bool
-type Option map[string]interface{}
+	"TEXT_TAG_OPEN", "COMMENT_TAG_OPEN", "COMMENT_TAG_CLOSE",
+	"WHITESPACE", "AT_BLOCK", "AT_SECTION"}
 
 type TokenMatch struct {
 	Type  int
@@ -93,16 +90,106 @@ type Token struct {
 	Pos     int
 }
 
-func (token Token) P() {
+func (token Token) debug() {
 	textStr := strings.Replace(token.Text, "\n", "\\n", -1)
 	textStr = strings.Replace(textStr, "\t", "\\t", -1)
-	fmt.Printf("Token: %-20s Location:(%-2d %-2d) Value: %s\n",
+	fmt.Printf("Token: %-20s Location:(%-2d, %d) Value: %s\n",
 		token.TypeStr, token.Line, token.Pos, textStr)
 }
 
 type Lexer struct {
 	Text    string
 	Matches []TokenMatch
+}
+
+func (lexer *Lexer) Scan() ([]Token, error) {
+	tokens := []Token{}
+	text := strings.Replace(lexer.Text, "\r\n", "\n", -1)
+	text = strings.Replace(lexer.Text, "\r", "\n", -1)
+	text += "\n"
+	cur, line, pos := 0, 0, 0
+	for cur < len(text) {
+		val, left := text[cur], text[cur:]
+		var token Token
+		switch val {
+		case '\n':
+			token = makeToken(string(val), NEWLINE)
+		case ' ', '\t', '\f', '\r':
+			token = makeToken(string(val), WHITESPACE)
+		case '(':
+			token = makeToken(string(val), PAREN_OPEN)
+		case ')':
+			token = makeToken(string(val), PAREN_CLOSE)
+		case '[':
+			token = makeToken(string(val), HARD_PAREN_OPEN)
+		case ']':
+			token = makeToken(string(val), HARD_PAREN_CLOSE)
+		case '{':
+			token = makeToken(string(val), BRACE_OPEN)
+		case '}':
+			token = makeToken(string(val), BRACE_CLOSE)
+		case '"', '`':
+			token = makeToken(string(val), DOUBLE_QUOTE)
+		case '\'':
+			token = makeToken(string(val), SINGLE_QUOTE)
+		case '.':
+			token = makeToken(string(val), PERIOD)
+		case '@':
+			if peekNext(string(':'), left[1:]) {
+				token = makeToken("@:", AT_COLON)
+			} else if peekNext("*", left[1:]) {
+				token = makeToken("@*", AT_STAR_OPEN)
+			} else if peekNext("block", left[1:]) {
+				token = makeToken("@block", AT_BLOCK)
+			} else if peekNext("section", left[1:]) {
+				token = makeToken("@section", AT_SECTION)
+			} else {
+				token = makeToken("@", AT)
+			}
+		default:
+			if peekNext("*@", left) {
+				token = makeToken("*@", AT_STAR_CLOSE)
+			} else if peekNext("<text>", left) {
+				token = makeToken("<text>", TEXT_TAG_OPEN)
+			} else if peekNext("</text>", left) {
+				token = makeToken("</text>", TEXT_TAG_CLOSE)
+			} else if peekNext("<!--", left) {
+				token = makeToken("<!--", COMMENT_TAG_OPEN)
+			} else if peekNext("-->", left) {
+				token = makeToken("-->", COMMENT_TAG_CLOSE)
+			} else {
+				//try rec
+				match := false
+				for _, m := range lexer.Matches {
+					found := m.Regex.FindIndex([]byte(left))
+					if found != nil {
+						match = true
+						tokenVal := left[found[0]:found[1]]
+						if m.Type == HTML_TAG_OPEN {
+							tokenVal = tagClean(tokenVal)
+						} else if m.Type == KEYWORD {
+							tokenVal = keyClean(tokenVal)
+						}
+						token = makeToken(tokenVal, m.Type)
+						break
+					}
+				}
+				if !match {
+					return tokens, fmt.Errorf("%d:%d: Illegal character: %s",
+						line, pos, string(text[pos]))
+				}
+			}
+		}
+		token.Line, token.Pos = line, pos
+		tokens = append(tokens, token)
+		cur += len(token.Text)
+		if token.Type == NEWLINE {
+			line, pos = line+1, 0
+		} else {
+			pos += len(token.Text)
+		}
+	}
+	return tokens, nil
 }
 
 // Why we need this: Go's regexp DO NOT support lookahead assertion
@@ -148,91 +235,6 @@ func peekNext(expect string, text string) bool {
 }
 
 func makeToken(val string, tokenType int) Token {
-	return Token{val, typeStr[tokenType], tokenType, 0, 0}
+	return Token{val, TokenTypeNames[tokenType], tokenType, 0, 0}
 }
 
-func (lexer *Lexer) Scan() ([]Token, error) {
-	tokens := []Token{}
-	text := strings.Replace(lexer.Text, "\r\n", "\n", -1)
-	text = strings.Replace(lexer.Text, "\r", "\n", -1)
-	text += "\n"
-	cur, line, pos := 0, 0, 0
-	for cur < len(text) {
-		val, left := text[cur], text[cur:]
-		var tok Token
-		switch val {
-		case '\n':
-			tok = makeToken(string(val), NEWLINE)
-		case ' ', '\t', '\f', '\r':
-			tok = makeToken(string(val), WHITESPACE)
-		case '(':
-			tok = makeToken(string(val), PAREN_OPEN)
-		case ')':
-			tok = makeToken(string(val), PAREN_CLOSE)
-		case '[':
-			tok = makeToken(string(val), HARD_PAREN_OPEN)
-		case ']':
-			tok = makeToken(string(val), HARD_PAREN_CLOSE)
-		case '{':
-			tok = makeToken(string(val), BRACE_OPEN)
-		case '}':
-			tok = makeToken(string(val), BRACE_CLOSE)
-		case '"', '`':
-			tok = makeToken(string(val), DOUBLE_QUOTE)
-		case '\'':
-			tok = makeToken(string(val), SINGLE_QUOTE)
-		case '.':
-			tok = makeToken(string(val), PERIOD)
-		case '@':
-			if peekNext(string(':'), left[1:]) {
-				tok = makeToken("@:", AT_COLON)
-			} else if peekNext(string('*'), left[1:]) {
-				tok = makeToken("@*", AT_STAR_OPEN)
-			} else {
-				tok = makeToken("@", AT)
-			}
-		default:
-			if peekNext("*@", left) {
-				tok = makeToken("*@", AT_STAR_CLOSE)
-			} else if peekNext("<text>", left) {
-				tok = makeToken("<text>", TEXT_TAG_OPEN)
-			} else if peekNext("</text>", left) {
-				tok = makeToken("</text>", TEXT_TAG_CLOSE)
-			} else if peekNext("<!--", left) {
-				tok = makeToken("<!--", COMMENT_TAG_OPEN)
-			} else if peekNext("-->", left) {
-				tok = makeToken("-->", COMMENT_TAG_CLOSE)
-			} else {
-				//try rec
-				match := false
-				for _, m := range lexer.Matches {
-					found := m.Regex.FindIndex([]byte(left))
-					if found != nil {
-						match = true
-						tokenVal := left[found[0]:found[1]]
-						if m.Type == HTML_TAG_OPEN {
-							tokenVal = tagClean(tokenVal)
-						} else if m.Type == KEYWORD {
-							tokenVal = keyClean(tokenVal)
-						}
-						tok = makeToken(tokenVal, m.Type)
-						break
-					}
-				}
-				if !match {
-					return tokens, fmt.Errorf("%d:%d: Illegal character: %s",
-						line, pos, string(text[pos]))
-				}
-			}
-		}
-		tok.Line, tok.Pos = line, pos
-		tokens = append(tokens, tok)
-		cur += len(tok.Text)
-		if tok.Type == NEWLINE {
-			line, pos = line+1, 0
-		} else {
-			pos += len(tok.Text)
-		}
-	}
-	return tokens, nil
-}

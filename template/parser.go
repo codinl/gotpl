@@ -1,10 +1,9 @@
-package gotpl
+package template
 
 import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 )
 
 //------------------------------ Parser ------------------------------//
@@ -26,6 +25,380 @@ var PAIRS = map[int]int{
 	AT_COLON:        NEWLINE,
 }
 
+type Parser struct {
+	ast         *Ast
+	rootAst     *Ast
+	tokens      []Token
+	preTokens   []Token
+	saveTextTag bool
+	initMode    int
+}
+
+func (parser *Parser) Run() error {
+	curToken := Token{"UNDEF", "UNDEF", UNDEF, 0, 0}
+	// parser.ast = &Ast{}
+	parser.rootAst = parser.ast
+	parser.ast.Mode = PRG
+	var err error
+	for {
+		if len(parser.tokens) == 0 {
+			break
+		}
+		parser.preTokens = append(parser.preTokens, curToken)
+		curToken = parser.nextToken()
+		if parser.ast.Mode == PRG {
+			// parser.initMode = UNK
+			initMode := parser.initMode
+			if initMode == UNK {
+				initMode = MKP
+			}
+			parser.ast = parser.ast.beget(initMode, "")
+			if parser.initMode == EXP {
+				parser.ast = parser.ast.beget(EXP, "")
+			}
+		}
+		switch parser.ast.Mode {
+		case MKP:
+			err = parser.handleMKP(curToken)
+		case NODE:
+			err = parser.handleNode(curToken)
+		case EXP:
+			err = parser.handleEXP(curToken)
+		}
+		if err != nil {
+			return err
+		}
+	}
+	parser.ast = parser.rootAst
+	return nil
+}
+
+func (parser *Parser) handleMKP(token Token) error {
+	next := parser.peekToken(0)
+	switch token.Type {
+	// @*
+	case AT_STAR_OPEN:
+		_, err := parser.advanceUntil(token, AT_STAR_OPEN, AT_STAR_CLOSE, AT, AT)
+		if err != nil {
+			return err
+		}
+	// @
+	case AT:
+		if next != nil {
+			switch next.Type {
+			// ( 标识符
+			case PAREN_OPEN, IDENTIFIER:
+				if len(parser.ast.Children) == 0 {
+					parser.ast = parser.ast.Parent
+					parser.ast.popChild() //remove empty MKP block
+				}
+				parser.ast = parser.ast.beget(EXP, "")
+			// 关键字 {
+			case KEYWORD, BRACE_OPEN: //BLK
+				if len(parser.ast.Children) == 0 {
+					parser.ast = parser.ast.Parent
+					parser.ast.popChild()
+				}
+				parser.ast = parser.ast.beget(NODE, "")
+			// @ @:
+			case AT, AT_COLON:
+				//we want to keep the token, but remove it's special meaning
+				next.Type = CONTENT
+				parser.ast.addChild(parser.nextToken())
+			default:
+				parser.ast.addChild(parser.nextToken())
+			}
+		}
+
+//	// <text> html标签开始
+//	case TEXT_TAG_OPEN, HTML_TAG_OPEN:
+//		tagName, _ := regMatch(`(?i)(^<([^\/ >]+))`, token.Text)
+//		tagName = strings.Replace(tagName, "<", "", -1)
+//		//TODO
+//		if parser.ast.TagName != "" {
+//			parser.ast = parser.ast.beget(MKP, tagName)
+//		} else {
+//			parser.ast.TagName = tagName
+//		}
+//		if token.Type == HTML_TAG_OPEN || parser.saveTextTag {
+//			parser.ast.addChild(token)
+//		}
+//
+//	// </text> html标签结束
+//	case TEXT_TAG_CLOSE, HTML_TAG_CLOSE:
+//		tagName, _ := regMatch(`(?i)^<\/([^>]+)`, token.Text)
+//		tagName = strings.Replace(tagName, "</", "", -1)
+//		//TODO
+//		opener := parser.ast.closest(MKP, tagName)
+//		if opener.TagName == tagName {
+//			parser.ast = opener
+//		}
+//		if token.Type == HTML_TAG_CLOSE || parser.saveTextTag {
+//			parser.ast.addChild(token)
+//		}
+//
+//		// so that we can keep in a right hierarchy
+//		if parser.ast.Parent != nil && parser.ast.Parent.Mode == NODE {
+//			parser.ast = parser.ast.Parent
+//		}
+
+	// html空结束
+	case HTML_TAG_VOID_CLOSE:
+		parser.ast.addChild(token)
+		parser.ast = parser.ast.Parent
+
+	default:
+		parser.ast.addChild(token)
+	}
+
+	return nil
+}
+
+func (parser *Parser) handleNode(token Token) error {
+	next := parser.peekToken(0)
+	switch token.Type {
+	case AT:
+		if next.Type != AT {
+			parser.deferToken(token)
+			parser.ast = parser.ast.beget(MKP, "")
+		} else {
+			next.Type = CONTENT
+			parser.ast.addChild(*next)
+			parser.skipToken()
+		}
+
+	case AT_STAR_OPEN:
+		parser.advanceUntil(token, AT_STAR_OPEN, AT_STAR_CLOSE, AT, AT)
+
+	case AT_COLON:
+		parser.subParse(token, MKP, true)
+
+	case TEXT_TAG_OPEN, TEXT_TAG_CLOSE, HTML_TAG_OPEN, HTML_TAG_CLOSE, COMMENT_TAG_OPEN, COMMENT_TAG_CLOSE:
+		parser.ast = parser.ast.beget(MKP, "")
+		parser.deferToken(token)
+
+	// ' " `
+	case SINGLE_QUOTE, DOUBLE_QUOTE:
+		subTokens, err := parser.advanceUntil(token, token.Type, PAIRS[token.Type], BACKSLASH, BACKSLASH)
+		if err != nil {
+			return err
+		}
+		for idx, _ := range subTokens {
+			if subTokens[idx].Type == AT {
+				subTokens[idx].Type = CONTENT
+			}
+		}
+		parser.ast.addChildren(subTokens)
+
+	// { (
+	case BRACE_OPEN, PAREN_OPEN:
+		subMode := NODE
+		parser.subParse(token, subMode, false)
+		subTokens := parser.advanceUntilNot(WHITESPACE)
+		next := parser.peekToken(0)
+		if next != nil && next.Type != KEYWORD &&
+		next.Type != BRACE_OPEN &&
+		token.Type != PAREN_OPEN {
+			parser.tokens = append(parser.tokens, subTokens...)
+			parser.ast = parser.ast.Parent
+		} else {
+			parser.ast.addChildren(subTokens)
+		}
+	default:
+		parser.ast.addChild(token)
+	}
+	return nil
+}
+
+func (parser *Parser) handleEXP(token Token) error {
+	switch token.Type {
+	case KEYWORD:
+		parser.ast = parser.ast.beget(NODE, "")
+		parser.deferToken(token)
+
+	case WHITESPACE, LOGICAL, ASSIGN_OPERATOR, OPERATOR, NUMERIC_CONTENT:
+		if parser.ast.Parent != nil && parser.ast.Parent.Mode == EXP {
+			parser.ast.addChild(token)
+		} else {
+			parser.ast = parser.ast.Parent
+			parser.deferToken(token)
+		}
+
+	case IDENTIFIER:
+		parser.ast.addChild(token)
+
+	case SINGLE_QUOTE, DOUBLE_QUOTE:
+		//TODO
+		if parser.ast.Parent != nil && parser.ast.Parent.Mode == EXP {
+			subTokens, err := parser.advanceUntil(token, token.Type,
+				PAIRS[token.Type], BACKSLASH, BACKSLASH)
+			if err != nil {
+				return err
+			}
+			parser.ast.addChildren(subTokens)
+		} else {
+			parser.ast = parser.ast.Parent
+			parser.deferToken(token)
+		}
+
+	case HARD_PAREN_OPEN, PAREN_OPEN:
+		prev := parser.prevToken(0)
+		next := parser.peekToken(0)
+		if token.Type == HARD_PAREN_OPEN && next.Type == HARD_PAREN_CLOSE {
+			// likely just [], which is not likely valid outside of EXP
+			parser.deferToken(token)
+			parser.ast = parser.ast.Parent
+			break
+		}
+		err := parser.subParse(token, EXP, false)
+		if err != nil {
+			return err
+		}
+		if (prev != nil && prev.Type == AT) || (next != nil && next.Type == IDENTIFIER) {
+			parser.ast = parser.ast.Parent
+		}
+
+	case BRACE_OPEN:
+		prev := parser.prevToken(0)
+		//todo: Is this really neccessary?
+		if prev.Type == IDENTIFIER {
+			parser.ast.addChild(token)
+		} else {
+			parser.deferToken(token)
+			parser.ast = parser.ast.beget(NODE, "")
+		}
+
+	case PERIOD:
+		next := parser.peekToken(0)
+		if next != nil && (next.Type == IDENTIFIER || next.Type == KEYWORD ||
+		next.Type == PERIOD ||
+		(parser.ast.Parent != nil && parser.ast.Parent.Mode == EXP)) {
+			parser.ast.addChild(token)
+		} else {
+			parser.ast = parser.ast.Parent
+			parser.deferToken(token)
+		}
+
+	default:
+		if parser.ast.Parent != nil && parser.ast.Parent.Mode != EXP {
+			parser.ast = parser.ast.Parent
+			parser.deferToken(token)
+		} else {
+			parser.ast.addChild(token)
+		}
+	}
+	return nil
+}
+
+func (parser *Parser) subParse(token Token, modeOpen int, includeDelim bool) error {
+	subTokens, err := parser.advanceUntil(token, token.Type, PAIRS[token.Type], -1, AT)
+	if err != nil {
+		return err
+	}
+	subTokens = subTokens[1:]
+	closer := subTokens[len(subTokens)-1]
+	subTokens = subTokens[:len(subTokens)-1]
+	if !includeDelim {
+		parser.ast.addChild(token)
+	}
+	_parser := &Parser{&Ast{}, nil, subTokens, []Token{}, false, modeOpen}
+	_parser.Run()
+	if includeDelim {
+		_parser.ast.Children = append([]interface{}{token}, _parser.ast.Children...)
+		_parser.ast.addChild(closer)
+	}
+	parser.ast.addAst(_parser.ast)
+	if !includeDelim {
+		parser.ast.addChild(closer)
+	}
+	return nil
+}
+
+func (parser *Parser) prevToken(idx int) *Token {
+	l := len(parser.preTokens)
+	if l < idx+1 {
+		return nil
+	}
+	return &(parser.preTokens[l-1-idx])
+}
+
+func (parser *Parser) deferToken(token Token) {
+	parser.tokens = append([]Token{token}, parser.tokens...)
+	parser.preTokens = parser.preTokens[:len(parser.preTokens)-1]
+}
+
+func (parser *Parser) peekToken(idx int) *Token {
+	if len(parser.tokens) <= idx {
+		return nil
+	}
+	return &(parser.tokens[idx])
+}
+
+func (parser *Parser) nextToken() Token {
+	t := parser.peekToken(0)
+	if t != nil {
+		parser.tokens = parser.tokens[1:]
+	}
+	return *t
+}
+
+func (parser *Parser) skipToken() {
+	parser.tokens = parser.tokens[1:]
+}
+
+func (parser *Parser) advanceUntilNot(tokenType int) []Token {
+	res := []Token{}
+	for {
+		t := parser.peekToken(0)
+		if t != nil && t.Type == tokenType {
+			res = append(res, parser.nextToken())
+		} else {
+			break
+		}
+	}
+	return res
+}
+
+// parser.advanceUntil(token, AT_STAR_OPEN, AT_STAR_CLOSE, AT, AT)
+//subTokens, err := parser.advanceUntil(token, token.Type, PAIRS[token.Type], -1, AT)
+func (parser *Parser) advanceUntil(token Token, start, end, startEsc, endEsc int) ([]Token, error) {
+	var prev *Token = nil
+	next := &token
+	tokens := []Token{}
+	open := 0
+	close := 0
+	for {
+		if next.Type == start {
+			if (prev != nil && prev.Type != startEsc && start != end) || prev == nil {
+				open++
+			} else if start == end && prev.Type != startEsc {
+				close++
+			}
+		} else if next.Type == end {
+			close++
+			if prev != nil && prev.Type == endEsc {
+				close--
+			}
+		}
+		tokens = append(tokens, *next)
+		if open == close {
+			break
+		}
+		prev = next
+		next = parser.peekToken(0)
+		if next == nil {
+			//this will treated as a FATAL
+			msg := fmt.Sprintf("Unmatched tag close: \"%s\" at line: %d pos: %d\n",
+				token.Text, token.Line, token.Pos)
+			return nil, errors.New(msg)
+		}
+		parser.nextToken()
+	}
+	return tokens, nil
+}
+
+
+//------------------------------ Ast ------------------------------//
 type Ast struct {
 	Parent   *Ast
 	Children []interface{}
@@ -160,11 +533,11 @@ func (ast *Ast) debug(depth int, max int) {
 			b.debug(depth+1, max)
 		} else {
 			if depth+1 < max {
-				aa := (Token)(a.(Token))
+				t := (Token)(a.(Token))
 				for i := 0; i < depth+1; i++ {
 					fmt.Printf("%c", '-')
 				}
-				aa.P()
+				t.debug()
 			}
 		}
 	}
@@ -173,47 +546,6 @@ func (ast *Ast) debug(depth int, max int) {
 	}
 
 	fmt.Println("]]")
-}
-
-type Parser struct {
-	ast         *Ast
-	rootAst     *Ast
-	tokens      []Token
-	preTokens   []Token
-	saveTextTag bool
-	initMode    int
-}
-
-func (parser *Parser) prevToken(idx int) *Token {
-	l := len(parser.preTokens)
-	if l < idx+1 {
-		return nil
-	}
-	return &(parser.preTokens[l-1-idx])
-}
-
-func (parser *Parser) deferToken(token Token) {
-	parser.tokens = append([]Token{token}, parser.tokens...)
-	parser.preTokens = parser.preTokens[:len(parser.preTokens)-1]
-}
-
-func (parser *Parser) peekToken(idx int) *Token {
-	if len(parser.tokens) <= idx {
-		return nil
-	}
-	return &(parser.tokens[idx])
-}
-
-func (parser *Parser) nextToken() Token {
-	t := parser.peekToken(0)
-	if t != nil {
-		parser.tokens = parser.tokens[1:]
-	}
-	return *t
-}
-
-func (parser *Parser) skipToken() {
-	parser.tokens = parser.tokens[1:]
 }
 
 func regMatch(reg string, text string) (string, error) {
@@ -227,332 +559,4 @@ func regMatch(reg string, text string) (string, error) {
 		return text[found[0]:found[1]], nil
 	}
 	return "", nil
-}
-
-func (parser *Parser) advanceUntilNot(tokenType int) []Token {
-	res := []Token{}
-	for {
-		t := parser.peekToken(0)
-		if t != nil && t.Type == tokenType {
-			res = append(res, parser.nextToken())
-		} else {
-			break
-		}
-	}
-	return res
-}
-
-// parser.advanceUntil(token, AT_STAR_OPEN, AT_STAR_CLOSE, AT, AT)
-//subTokens, err := parser.advanceUntil(token, token.Type, PAIRS[token.Type], -1, AT)
-func (parser *Parser) advanceUntil(token Token, start, end, startEsc, endEsc int) ([]Token, error) {
-	var prev *Token = nil
-	next := &token
-	tokens := []Token{}
-	open := 0
-	close := 0
-	for {
-		if next.Type == start {
-			if (prev != nil && prev.Type != startEsc && start != end) || prev == nil {
-				open++
-			} else if start == end && prev.Type != startEsc {
-				close++
-			}
-		} else if next.Type == end {
-			close++
-			if prev != nil && prev.Type == endEsc {
-				close--
-			}
-		}
-		tokens = append(tokens, *next)
-		if open == close {
-			break
-		}
-		prev = next
-		next = parser.peekToken(0)
-		if next == nil {
-			//this will treated as a FATAL
-			msg := fmt.Sprintf("Unmatched tag close: \"%s\" at line: %d pos: %d\n",
-				token.Text, token.Line, token.Pos)
-			return nil, errors.New(msg)
-		}
-		parser.nextToken()
-	}
-	return tokens, nil
-}
-
-func (parser *Parser) subParse(token Token, modeOpen int, includeDelim bool) error {
-	subTokens, err := parser.advanceUntil(token, token.Type, PAIRS[token.Type], -1, AT)
-	if err != nil {
-		return err
-	}
-	subTokens = subTokens[1:]
-	closer := subTokens[len(subTokens)-1]
-	subTokens = subTokens[:len(subTokens)-1]
-	if !includeDelim {
-		parser.ast.addChild(token)
-	}
-	_parser := &Parser{&Ast{}, nil, subTokens, []Token{}, false, modeOpen}
-	_parser.Run()
-	if includeDelim {
-		_parser.ast.Children = append([]interface{}{token}, _parser.ast.Children...)
-		_parser.ast.addChild(closer)
-	}
-	parser.ast.addAst(_parser.ast)
-	if !includeDelim {
-		parser.ast.addChild(closer)
-	}
-	return nil
-}
-
-func (parser *Parser) handleMKP(token Token) error {
-	next := parser.peekToken(0)
-	switch token.Type {
-	// "@*"
-	case AT_STAR_OPEN:
-		_, err := parser.advanceUntil(token, AT_STAR_OPEN, AT_STAR_CLOSE, AT, AT)
-		if err != nil {
-			return err
-		}
-	// "@"
-	case AT:
-		if next != nil {
-			switch next.Type {
-			// "(" 标识符
-			case PAREN_OPEN, IDENTIFIER:
-				if len(parser.ast.Children) == 0 {
-					parser.ast = parser.ast.Parent
-					parser.ast.popChild() //remove empty MKP block
-				}
-				parser.ast = parser.ast.beget(EXP, "")
-			// 关键字  "{"
-			case KEYWORD, BRACE_OPEN: //BLK
-				if len(parser.ast.Children) == 0 {
-					parser.ast = parser.ast.Parent
-					parser.ast.popChild()
-				}
-				parser.ast = parser.ast.beget(NODE, "")
-			// "@" "@:"
-			case AT, AT_COLON:
-				//we want to keep the token, but remove it's special meanning
-				next.Type = CONTENT
-				parser.ast.addChild(parser.nextToken())
-			default:
-				parser.ast.addChild(parser.nextToken())
-			}
-		}
-
-	// <text> html标签开始
-	case TEXT_TAG_OPEN, HTML_TAG_OPEN:
-		tagName, _ := regMatch(`(?i)(^<([^\/ >]+))`, token.Text)
-		tagName = strings.Replace(tagName, "<", "", -1)
-		//TODO
-		if parser.ast.TagName != "" {
-			parser.ast = parser.ast.beget(MKP, tagName)
-		} else {
-			parser.ast.TagName = tagName
-		}
-		if token.Type == HTML_TAG_OPEN || parser.saveTextTag {
-			parser.ast.addChild(token)
-		}
-
-	// </text> html标签结束
-	case TEXT_TAG_CLOSE, HTML_TAG_CLOSE:
-		tagName, _ := regMatch(`(?i)^<\/([^>]+)`, token.Text)
-		tagName = strings.Replace(tagName, "</", "", -1)
-		//TODO
-		opener := parser.ast.closest(MKP, tagName)
-		if opener.TagName == tagName {
-			parser.ast = opener
-		}
-		if token.Type == HTML_TAG_CLOSE || parser.saveTextTag {
-			parser.ast.addChild(token)
-		}
-
-		// so that we can keep in a right hierarchy
-		if parser.ast.Parent != nil && parser.ast.Parent.Mode == NODE {
-			parser.ast = parser.ast.Parent
-		}
-	// html空结束
-	case HTML_TAG_VOID_CLOSE:
-		parser.ast.addChild(token)
-		parser.ast = parser.ast.Parent
-	default:
-		parser.ast.addChild(token)
-	}
-	return nil
-}
-
-func (parser *Parser) handleNode(token Token) error {
-	next := parser.peekToken(0)
-	switch token.Type {
-	case AT:
-		if next.Type != AT {
-			parser.deferToken(token)
-			parser.ast = parser.ast.beget(MKP, "")
-		} else {
-			next.Type = CONTENT
-			parser.ast.addChild(*next)
-			parser.skipToken()
-		}
-
-	case AT_STAR_OPEN:
-		parser.advanceUntil(token, AT_STAR_OPEN, AT_STAR_CLOSE, AT, AT)
-
-	case AT_COLON:
-		parser.subParse(token, MKP, true)
-
-	case TEXT_TAG_OPEN, TEXT_TAG_CLOSE, HTML_TAG_OPEN, HTML_TAG_CLOSE, COMMENT_TAG_OPEN, COMMENT_TAG_CLOSE:
-		parser.ast = parser.ast.beget(MKP, "")
-		parser.deferToken(token)
-
-	// ' "" `
-	case SINGLE_QUOTE, DOUBLE_QUOTE:
-		subTokens, err := parser.advanceUntil(token, token.Type, PAIRS[token.Type], BACKSLASH, BACKSLASH)
-		if err != nil {
-			return err
-		}
-		for idx, _ := range subTokens {
-			if subTokens[idx].Type == AT {
-				subTokens[idx].Type = CONTENT
-			}
-		}
-		parser.ast.addChildren(subTokens)
-
-	// { (
-	case BRACE_OPEN, PAREN_OPEN:
-		subMode := NODE
-		parser.subParse(token, subMode, false)
-		subTokens := parser.advanceUntilNot(WHITESPACE)
-		next := parser.peekToken(0)
-		if next != nil && next.Type != KEYWORD &&
-			next.Type != BRACE_OPEN &&
-			token.Type != PAREN_OPEN {
-			parser.tokens = append(parser.tokens, subTokens...)
-			parser.ast = parser.ast.Parent
-		} else {
-			parser.ast.addChildren(subTokens)
-		}
-	default:
-		parser.ast.addChild(token)
-	}
-	return nil
-}
-
-func (parser *Parser) handleEXP(token Token) error {
-	switch token.Type {
-	case KEYWORD:
-		parser.ast = parser.ast.beget(NODE, "")
-		parser.deferToken(token)
-
-	case WHITESPACE, LOGICAL, ASSIGN_OPERATOR, OPERATOR, NUMERIC_CONTENT:
-		if parser.ast.Parent != nil && parser.ast.Parent.Mode == EXP {
-			parser.ast.addChild(token)
-		} else {
-			parser.ast = parser.ast.Parent
-			parser.deferToken(token)
-		}
-
-	case IDENTIFIER:
-		parser.ast.addChild(token)
-
-	case SINGLE_QUOTE, DOUBLE_QUOTE:
-		//TODO
-		if parser.ast.Parent != nil && parser.ast.Parent.Mode == EXP {
-			subTokens, err := parser.advanceUntil(token, token.Type,
-				PAIRS[token.Type], BACKSLASH, BACKSLASH)
-			if err != nil {
-				return err
-			}
-			parser.ast.addChildren(subTokens)
-		} else {
-			parser.ast = parser.ast.Parent
-			parser.deferToken(token)
-		}
-
-	case HARD_PAREN_OPEN, PAREN_OPEN:
-		prev := parser.prevToken(0)
-		next := parser.peekToken(0)
-		if token.Type == HARD_PAREN_OPEN && next.Type == HARD_PAREN_CLOSE {
-			// likely just [], which is not likely valid outside of EXP
-			parser.deferToken(token)
-			parser.ast = parser.ast.Parent
-			break
-		}
-		err := parser.subParse(token, EXP, false)
-		if err != nil {
-			return err
-		}
-		if (prev != nil && prev.Type == AT) || (next != nil && next.Type == IDENTIFIER) {
-			parser.ast = parser.ast.Parent
-		}
-
-	case BRACE_OPEN:
-		prev := parser.prevToken(0)
-		//todo: Is this really neccessary?
-		if prev.Type == IDENTIFIER {
-			parser.ast.addChild(token)
-		} else {
-			parser.deferToken(token)
-			parser.ast = parser.ast.beget(NODE, "")
-		}
-
-	case PERIOD:
-		next := parser.peekToken(0)
-		if next != nil && (next.Type == IDENTIFIER || next.Type == KEYWORD ||
-			next.Type == PERIOD ||
-			(parser.ast.Parent != nil && parser.ast.Parent.Mode == EXP)) {
-			parser.ast.addChild(token)
-		} else {
-			parser.ast = parser.ast.Parent
-			parser.deferToken(token)
-		}
-
-	default:
-		if parser.ast.Parent != nil && parser.ast.Parent.Mode != EXP {
-			parser.ast = parser.ast.Parent
-			parser.deferToken(token)
-		} else {
-			parser.ast.addChild(token)
-		}
-	}
-	return nil
-}
-
-func (parser *Parser) Run() error {
-	curToken := Token{"UNDEF", "UNDEF", UNDEF, 0, 0}
-	// parser.ast = &Ast{}
-	parser.rootAst = parser.ast
-	parser.ast.Mode = PRG
-	var err error
-	for {
-		if len(parser.tokens) == 0 {
-			break
-		}
-		parser.preTokens = append(parser.preTokens, curToken)
-		curToken = parser.nextToken()
-		if parser.ast.Mode == PRG {
-			// parser.initMode = UNK
-			initMode := parser.initMode
-			if initMode == UNK {
-				initMode = MKP
-			}
-			parser.ast = parser.ast.beget(initMode, "")
-			if parser.initMode == EXP {
-				parser.ast = parser.ast.beget(EXP, "")
-			}
-		}
-		switch parser.ast.Mode {
-		case MKP:
-			err = parser.handleMKP(curToken)
-		case NODE:
-			err = parser.handleNode(curToken)
-		case EXP:
-			err = parser.handleEXP(curToken)
-		}
-		if err != nil {
-			return err
-		}
-	}
-	parser.ast = parser.rootAst
-	return nil
 }

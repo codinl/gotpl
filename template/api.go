@@ -1,4 +1,4 @@
-package gotpl
+package template
 
 import (
 	"fmt"
@@ -19,31 +19,37 @@ const (
 	SEC_DIR = "sections/"
 )
 
-var Sections map[string]*Section
+// Option have following options:
+//   Debug bool
+//   Watch bool
+//   NameNotChange bool
+type Option map[string]interface{}
+
+//var Sections map[string]*Section
 
 func Generate(input string, output string, options Option) error {
-	tplDir = input
+//	tplDir = input
+//
+//	tpl, err := buildTplTree(input)
+//	if err != nil {
+//		return err
+//	}
+//
+//	secs, err := genSections(tplDir)
+//	if err == nil {
+//		Sections = secs
+//	} else {
+//		Sections = nil
+//	}
+//
+//	err = tpl.genBlock()
+//	if err != nil {
+//		return err
+//	}
 
-	tpl, err := buildTplTree(input)
-	if err != nil {
-		return err
-	}
+//	input = input + TMP_DIR
 
-	secs, err := genSections(tplDir)
-	if err == nil {
-		Sections = secs
-	} else {
-		Sections = nil
-	}
-
-	err = tpl.genBlock()
-	if err != nil {
-		return err
-	}
-
-	input = input + TMP_DIR
-
-	err = genFolder(input, output, options)
+	err := genFolder(input, output, options)
 	if err != nil {
 		return err
 	}
@@ -84,7 +90,10 @@ func genFolder(input string, out string, options Option) (err error) {
 	visit := func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			//Just do file with exstension .t
-			if !strings.HasSuffix(path, TMP_EXT) {
+//			if !strings.HasSuffix(path, TMP_EXT) {
+//				return nil
+//			}
+			if !strings.HasSuffix(path, TPL_EXT) {
 				return nil
 			}
 			filename := filepath.Base(path)
@@ -100,7 +109,8 @@ func genFolder(input string, out string, options Option) (err error) {
 		//adjust with the abs path, so that we keep the same directory hierarchy
 		input, _ := filepath.Abs(path)
 		output := strings.Replace(input, input_abs, out_abs, 1)
-		output = strings.Replace(output, TMP_EXT, GO_EXT, -1)
+//		output = strings.Replace(output, TMP_EXT, GO_EXT, -1)
+		output = strings.Replace(output, TPL_EXT, GO_EXT, -1)
 		err := GenFile(path, output, options)
 		if err != nil {
 			res <- fmt.Sprintf("%s -> %s", path, output)
@@ -174,7 +184,7 @@ func run(input string, Options Option) (*Compiler, error) {
 	if Options["Debug"] == true {
 		fmt.Println("------------------- TOKEN START -----------------")
 		for _, elem := range tokens {
-			elem.P()
+			elem.debug()
 		}
 		fmt.Println("--------------------- TOKEN END -----------------\n")
 	}

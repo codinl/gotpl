@@ -1,4 +1,4 @@
-package gotpl
+package template
 
 import (
 	"fmt"
@@ -34,6 +34,22 @@ func getValStr(e interface{}) string {
 type Part struct {
 	Type  int
 	value string
+}
+
+func makeCompiler(ast *Ast, options Option, input string) *Compiler {
+	dir := filepath.Base(filepath.Dir(input))
+	file := strings.Replace(filepath.Base(input), TMP_EXT, "", 1)
+	if options["NameNotChange"] == nil {
+		file = Capitalize(file)
+	}
+	return &Compiler{ast: ast, buf: "",
+		layout: "", firstNode: 0,
+		params: []string{}, parts: []Part{},
+		imports: map[string]bool{},
+		options: options,
+		dir:     dir,
+		file:    file,
+	}
 }
 
 //------------------------------ Compiler ------------------------------ //
@@ -82,22 +98,6 @@ func (cp *Compiler) genPart() {
 		}
 	}
 	cp.buf = res
-}
-
-func makeCompiler(ast *Ast, options Option, input string) *Compiler {
-	dir := filepath.Base(filepath.Dir(input))
-	file := strings.Replace(filepath.Base(input), TMP_EXT, "", 1)
-	if options["NameNotChange"] == nil {
-		file = Capitalize(file)
-	}
-	return &Compiler{ast: ast, buf: "",
-		layout: "", firstNode: 0,
-		params: []string{}, parts: []Part{},
-		imports: map[string]bool{},
-		options: options,
-		dir:     dir,
-		file:    file,
-	}
 }
 
 func (cp *Compiler) visitNode(child interface{}, ast *Ast) {
