@@ -379,7 +379,7 @@ func (parser *Parser) subParse(token Token, modeOpen int, includeDelim bool) err
 	if !includeDelim {
 		parser.ast.addChild(token)
 	}
-	_parser := &Parser{&Ast{}, nil, subTokens, []Token{}, false, modeOpen, map[string]*Ast{}}
+	_parser := &Parser{&Ast{}, nil, subTokens, []Token{}, modeOpen, map[string]*Ast{}}
 	_parser.Run()
 	if includeDelim {
 		_parser.ast.Children = append([]interface{}{token}, _parser.ast.Children...)

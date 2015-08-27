@@ -9,13 +9,48 @@ import (
 	"strings"
 )
 
-func Generate(input string, out string, option Option) (err error) {
-	if !exists(input) {
-		err = os.MkdirAll(input, 0755)
-		if err != nil {
-			return err
-		}
+func BuildTplTree(input string, option Option) (*Tpl, error) {
+	rootTpl := &Tpl{name:"root"}
+
+	paths, err := getFiles(input)
+	if err != nil {
+		return nil, err
 	}
+
+	for i := 0; i < len(paths); i++ {
+		path := paths[i]
+
+		if !strings.HasSuffix(path, TPL_EXT) {
+			continue
+		}
+
+		baseName := filepath.Base(path)
+		name := strings.Replace(baseName, "."+TPL_EXT, "", 1)
+
+		tpl := &Tpl{name:name,option:option}
+
+		err := tpl.readRaw()
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+//
+//		err = tpl.Generate()
+//		if err != nil {
+//			os.Exit(2)
+//		}
+	}
+
+	return rootTpl, nil
+}
+
+func Generate(input string, out string, option Option) (err error) {
+//	if !exists(input) {
+//		err = os.MkdirAll(input, 0755)
+//		if err != nil {
+//			return err
+//		}
+//	}
 
 	//Make it
 	if !exists(out) {
@@ -84,7 +119,7 @@ type Tpl struct {
 	parent   *Tpl
 	raw 	 []byte
 	result 	 string
-	tokens   []*Token
+	tokens   []Token
 	ast      *Ast
 	blocks   map[string]*Ast
 	sections map[string]*Ast
@@ -94,7 +129,7 @@ type Tpl struct {
 func InitTpl(name string, option Option) (*Tpl, error) {
 	tpl := &Tpl{name:name,option:option}
 
-	err := tpl.content()
+	err := tpl.readRaw()
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
@@ -133,7 +168,7 @@ func (tpl Tpl) Generate() error {
 }
 
 func (tpl Tpl) genToken() error {
-	lex := &Lexer{Text: tpl.content, Matches: TokenMatches}
+	lex := &Lexer{Text: string(tpl.raw), Matches: TokenMatches}
 
 	tokens, err := lex.Scan()
 	if err != nil {
@@ -186,29 +221,29 @@ func (tpl Tpl) compile() error {
 	return nil
 }
 
-func (tpl Tpl) content() error {
-	content, err := ioutil.ReadFile(tpl.path())
+func (tpl Tpl) readRaw() error {
+	raw, err := ioutil.ReadFile(tpl.getPath())
 	if err != nil {
 		return err
 	}
-	tpl.content = content
+	tpl.raw = raw
 	return nil
 }
 
-func (tpl Tpl) path() string {
+func (tpl Tpl) getPath() string {
 	return "" + tpl.name
 }
 
-func (tpl Tpl) outpath() string {
+func (tpl Tpl) getOutPath() string {
 	return "" + tpl.name
 }
 
-func (tpl Tpl) name() string {
+func (tpl Tpl) getName() string {
 	return "" + tpl.name
 }
 
 func (tpl Tpl) fmt() error {
-	cmd := exec.Command("gofmt", "-w", tpl.outpath())
+	cmd := exec.Command("gofmt", "-w", tpl.getOutPath())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
@@ -220,7 +255,7 @@ func (tpl Tpl) fmt() error {
 }
 
 func (tpl Tpl) output() error {
-	err := ioutil.WriteFile(tpl.outpath(), []byte(tpl.result), 0644)
+	err := ioutil.WriteFile(tpl.getOutPath(), []byte(tpl.result), 0644)
 	if err != nil {
 		return  err
 	}
