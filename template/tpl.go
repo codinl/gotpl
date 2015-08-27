@@ -5,7 +5,79 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 )
+
+func Generate(input string, out string, option Option) (err error) {
+	if !exists(input) {
+		err = os.MkdirAll(input, 0755)
+		if err != nil {
+			return err
+		}
+	}
+
+	//Make it
+	if !exists(out) {
+		os.MkdirAll(out, 0775)
+	}
+
+	input_abs, _ := filepath.Abs(input)
+	out_abs, _ := filepath.Abs(out)
+
+	paths, err := getFiles(input_abs)
+	if err != nil {
+		return err
+	}
+
+//	fun := func(path string, res chan<- string) {
+//		//adjust with the abs path, so that we keep the same directory hierarchy
+//		input, _ := filepath.Abs(path)
+//		output := strings.Replace(input, input_abs, out_abs, 1)
+//		//		output = strings.Replace(output, TMP_EXT, GO_EXT, -1)
+//		output = strings.Replace(output, TPL_EXT, GO_EXT, -1)
+//		err := GenFile(path, output, options)
+//		if err != nil {
+//			res <- fmt.Sprintf("%s -> %s", path, output)
+//			os.Exit(2)
+//		}
+//		res <- fmt.Sprintf("%s -> %s", path, output)
+//	}
+
+//	result := make(chan string, len(paths))
+
+	//	for i := 0; i < len(paths); i++ {
+	//		<-result
+	//	}
+
+	for i := 0; i < len(paths); i++ {
+		path := paths[i]
+		input, _ := filepath.Abs(path)
+		output := strings.Replace(input, input_abs, out_abs, 1)
+		output = strings.Replace(output, TPL_EXT, GO_EXT, -1)
+
+		outdir := filepath.Dir(output)
+		if !exists(outdir) {
+			os.MkdirAll(outdir, 0775)
+		}
+
+		tpl, err := InitTpl(input, option)
+		if err != nil {
+			os.Exit(2)
+		}
+
+		err = tpl.Generate()
+		if err != nil {
+			os.Exit(2)
+		}
+	}
+
+	//	if options["Watch"] != nil {
+	//		watchDir(incdir_abs, outdir_abs, options)
+	//	}
+
+	return
+}
 
 type Tpl struct {
 	name     string
@@ -31,7 +103,7 @@ func InitTpl(name string, option Option) (*Tpl, error) {
 	return tpl, nil
 }
 
-func (tpl Tpl) Generate(option Option) error {
+func (tpl Tpl) Generate() error {
 	err := tpl.genToken()
 	if err != nil {
 		return err

@@ -27,35 +27,35 @@ import (
 
 //var Sections map[string]*Section
 
-func Generate(input string, output string, options Option) error {
-	//	tplDir = input
-	//
-	//	tpl, err := buildTplTree(input)
-	//	if err != nil {
-	//		return err
-	//	}
-	//
-	//	secs, err := genSections(tplDir)
-	//	if err == nil {
-	//		Sections = secs
-	//	} else {
-	//		Sections = nil
-	//	}
-	//
-	//	err = tpl.genBlock()
-	//	if err != nil {
-	//		return err
-	//	}
-
-	//	input = input + TMP_DIR
-
-	err := genFolder(input, output, options)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
+//func Generate(input string, output string, options Option) error {
+//	//	tplDir = input
+//	//
+//	//	tpl, err := buildTplTree(input)
+//	//	if err != nil {
+//	//		return err
+//	//	}
+//	//
+//	//	secs, err := genSections(tplDir)
+//	//	if err == nil {
+//	//		Sections = secs
+//	//	} else {
+//	//		Sections = nil
+//	//	}
+//	//
+//	//	err = tpl.genBlock()
+//	//	if err != nil {
+//	//		return err
+//	//	}
+//
+//	//	input = input + TMP_DIR
+//
+//	err := genFolder(input, output, options)
+//	if err != nil {
+//		return err
+//	}
+//
+//	return nil
+//}
 
 // Generate from input to output file,
 // gofmt will trigger an error if it fails.
