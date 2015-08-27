@@ -68,7 +68,7 @@ func GenFile(input string, output string, options Option) error {
 }
 
 // Generate from directory to directory, Find all the files with extension
-// of .gohtml and generate it into target dir.
+// of .html and generate it into target dir.
 func genFolder(input string, out string, options Option) (err error) {
 	if !exists(input) {
 		err = os.MkdirAll(input, 0755)
@@ -89,7 +89,7 @@ func genFolder(input string, out string, options Option) (err error) {
 
 	visit := func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
-			//Just do file with exstension .t
+			//Just do file with extention .t
 //			if !strings.HasSuffix(path, TMP_EXT) {
 //				return nil
 //			}

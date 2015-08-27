@@ -128,8 +128,8 @@ func genFolder(input string, out string, options Option) (err error) {
 	return
 }
 
-func generate(input string, output string, Options Option) error {
-	compiler, err := run(input, Options)
+func generate(input string, output string, option Option) error {
+	compiler, err := run(input, option)
 	if err != nil || compiler == nil {
 		panic(err)
 	}
@@ -147,7 +147,7 @@ func generate(input string, output string, Options Option) error {
 		return err
 	}
 
-	if Options["Debug"] == true {
+	if option["Debug"] == true {
 		content, _ := ioutil.ReadFile(output)
 		fmt.Println(string(content))
 	}

@@ -12,24 +12,10 @@ import (
 var Namespace = `"github.com/codinl/gotpl/gotpl"`
 
 const (
-	CMKP = iota
-	CNODE
-	CSTAT
+	PART_MKP = iota
+	PART_TOKEN
+	PART_STAT
 )
-
-func getValStr(e interface{}) string {
-	switch v := e.(type) {
-	case *Ast:
-		return v.TagName
-	case Token:
-		if !(v.Type == AT || v.Type == AT_COLON) {
-			return v.Text
-		}
-		return ""
-	default:
-		panic(e)
-	}
-}
 
 type Part struct {
 	Type  int
@@ -38,7 +24,7 @@ type Part struct {
 
 func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 	dir := filepath.Base(filepath.Dir(input))
-	file := strings.Replace(filepath.Base(input), TMP_EXT, "", 1)
+	file := strings.Replace(filepath.Base(input), TPL_EXT, "", 1)
 	if options["NameNotChange"] == nil {
 		file = Capitalize(file)
 	}
@@ -66,46 +52,130 @@ type Compiler struct {
 	file      string
 }
 
-func (cp *Compiler) addPart(part Part) {
-	if len(cp.parts) == 0 {
-		cp.parts = append(cp.parts, part)
-		return
-	}
-	last := &cp.parts[len(cp.parts)-1]
-	if last.Type == part.Type {
-		last.value += part.value
-	} else {
-		cp.parts = append(cp.parts, part)
-	}
-}
-
-func (cp *Compiler) genPart() {
-	res := ""
-	for _, p := range cp.parts {
-		if p.Type == CMKP && p.value != "" {
-			// do some escapings
-			for strings.HasSuffix(p.value, "\n") {
-				p.value = p.value[:len(p.value)-1]
+func (cp *Compiler) visitAst(ast *Ast) {
+	switch ast.Mode {
+	case MKP:
+		cp.firstNode = 1
+		for _, c := range ast.Children {
+			if _, ok := c.(Token); ok {
+				cp.visitMKP(c, ast)
+			} else {
+				cp.visitAst(c.(*Ast))
 			}
-			if p.value != "" {
-				p.value = fmt.Sprintf("%#v", p.value)
-				res += "_buffer.WriteString(" + p.value + ")\n"
-			}
-		} else if p.Type == CNODE {
-			res += p.value + "\n"
+		}
+	case NODE:
+		if cp.firstNode == 0 {
+			cp.firstNode = 1
+			cp.visitFirstNode(ast)
 		} else {
-			res += p.value
+			remove := false
+			if len(ast.Children) >= 2 {
+				first := ast.Children[0]
+				last := ast.Children[len(ast.Children)-1]
+				v1, ok1 := first.(Token)
+				v2, ok2 := last.(Token)
+				if ok1 && ok2 && v1.Text == "{" && v2.Text == "}" {
+					remove = true
+				}
+			}
+			for idx, c := range ast.Children {
+				if remove && (idx == 0 || idx == len(ast.Children)-1) {
+					continue
+				}
+				if _, ok := c.(Token); ok {
+					cp.visitToken(c, ast)
+				} else {
+					cp.visitAst(c.(*Ast))
+				}
+			}
+		}
+	case BLOCK:
+		firstBraceFind := false
+		for idx, c := range ast.Children {
+			if !firstBraceFind {
+				if t, ok := c.(Token); ok {
+					if t.Type == BRACE_OPEN {
+						firstBraceFind = true
+					}
+				}
+				continue
+			}
+
+			if (idx == len(ast.Children)-1) {
+				continue
+			}
+
+//			fmt.Println("--------idx", idx)
+
+			if _, ok := c.(Token); ok {
+//				fmt.Println("--------cp.visitMKP(c, ast)")
+				cp.visitMKP(c, ast)
+			} else {
+//				fmt.Println("--------cp.visitAst(c.(*Ast))")
+				cp.visitAst(c.(*Ast))
+			}
+		}
+	case EXP:
+		cp.firstNode = 1
+		nonExp := ast.hasNonExp()
+		for i, c := range ast.Children {
+			if _, ok := c.(Token); ok {
+				cp.visitExp(c, ast, i, !nonExp)
+			} else {
+				cp.visitAst(c.(*Ast))
+			}
+		}
+	case PRG:
+		for _, c := range ast.Children {
+			cp.visitAst(c.(*Ast))
 		}
 	}
-	cp.buf = res
-}
-
-func (cp *Compiler) visitNode(child interface{}, ast *Ast) {
-	cp.addPart(Part{CNODE, getValStr(child)})
 }
 
 func (cp *Compiler) visitMKP(child interface{}, ast *Ast) {
-	cp.addPart(Part{CMKP, getValStr(child)})
+	cp.addPart(Part{PART_MKP, getValStr(child)})
+}
+
+func (cp *Compiler) visitToken(child interface{}, ast *Ast) {
+	cp.addPart(Part{PART_TOKEN, getValStr(child)})
+}
+
+func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, isHomo bool) {
+	start := ""
+	end := ""
+	ppNotExp := true
+	ppChildCnt := len(parent.Children)
+	//	pack := cp.dir
+	htmlEsc := cp.options["htmlEscape"]
+	if parent.Parent != nil && parent.Parent.Mode == EXP {
+		ppNotExp = false
+	}
+	val := getValStr(child)
+	if htmlEsc == nil {
+		if ppNotExp && idx == 0 && isHomo {
+			start += "gotpl.HTMLEscape("
+			cp.imports[Namespace] = true
+		}
+		if ppNotExp && idx == ppChildCnt-1 && isHomo {
+			end += ")"
+		}
+	}
+
+	if ppNotExp && idx == 0 {
+		start = "_buffer.WriteString(" + start
+	}
+	if ppNotExp && idx == ppChildCnt-1 {
+		end += ")\n"
+	}
+
+	v := start
+	if val == "raw" {
+		v += end
+	} else {
+		v += val + end
+	}
+
+	cp.addPart(Part{PART_STAT, v})
 }
 
 // First node contains imports and parameters, specific action for layout,
@@ -150,96 +220,38 @@ func (cp *Compiler) visitFirstNode(node *Ast) {
 	}
 }
 
-func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, isHomo bool) {
-	start := ""
-	end := ""
-	ppNotExp := true
-	ppChildCnt := len(parent.Children)
-	//	pack := cp.dir
-	htmlEsc := cp.options["htmlEscape"]
-	if parent.Parent != nil && parent.Parent.Mode == EXP {
-		ppNotExp = false
+func (cp *Compiler) addPart(part Part) {
+	if len(cp.parts) == 0 {
+		cp.parts = append(cp.parts, part)
+		return
 	}
-	val := getValStr(child)
-	if htmlEsc == nil {
-		if ppNotExp && idx == 0 && isHomo {
-			start += "gotpl.HTMLEscape("
-			cp.imports[Namespace] = true
-		}
-		if ppNotExp && idx == ppChildCnt-1 && isHomo {
-			end += ")"
-		}
-	}
-
-	if ppNotExp && idx == 0 {
-		start = "_buffer.WriteString(" + start
-	}
-	if ppNotExp && idx == ppChildCnt-1 {
-		end += ")\n"
-	}
-
-	v := start
-	if val == "raw" {
-		v += end
+	last := &cp.parts[len(cp.parts)-1]
+	if last.Type == part.Type {
+		last.value += part.value
 	} else {
-		v += val + end
+		cp.parts = append(cp.parts, part)
 	}
-
-	cp.addPart(Part{CSTAT, v})
 }
 
-func (cp *Compiler) visitAst(ast *Ast) {
-	switch ast.Mode {
-	case MKP:
-		cp.firstNode = 1
-		for _, c := range ast.Children {
-			if _, ok := c.(Token); ok {
-				cp.visitMKP(c, ast)
-			} else {
-				cp.visitAst(c.(*Ast))
+func (cp *Compiler) genPart() {
+	res := ""
+	for _, p := range cp.parts {
+		if p.Type == PART_MKP && p.value != "" {
+			// do some escapings
+			for strings.HasSuffix(p.value, "\n") {
+				p.value = p.value[:len(p.value)-1]
 			}
-		}
-	case NODE:
-		if cp.firstNode == 0 {
-			cp.firstNode = 1
-			cp.visitFirstNode(ast)
+			if p.value != "" {
+				p.value = fmt.Sprintf("%#v", p.value)
+				res += "_buffer.WriteString(" + p.value + ")\n"
+			}
+		} else if p.Type == PART_TOKEN {
+			res += p.value + "\n"
 		} else {
-			remove := false
-			if len(ast.Children) >= 2 {
-				first := ast.Children[0]
-				last := ast.Children[len(ast.Children)-1]
-				v1, ok1 := first.(Token)
-				v2, ok2 := last.(Token)
-				if ok1 && ok2 && v1.Text == "{" && v2.Text == "}" {
-					remove = true
-				}
-			}
-			for idx, c := range ast.Children {
-				if remove && (idx == 0 || idx == len(ast.Children)-1) {
-					continue
-				}
-				if _, ok := c.(Token); ok {
-					cp.visitNode(c, ast)
-				} else {
-					cp.visitAst(c.(*Ast))
-				}
-			}
-		}
-	case EXP:
-		cp.firstNode = 1
-		nonExp := ast.hasNonExp()
-		for i, c := range ast.Children {
-			if _, ok := c.(Token); ok {
-				cp.visitExp(c, ast, i, !nonExp)
-			} else {
-				cp.visitAst(c.(*Ast))
-			}
-		}
-	case PRG:
-		for _, c := range ast.Children {
-			cp.visitAst(c.(*Ast))
+			res += p.value
 		}
 	}
+	cp.buf = res
 }
 
 func (cp *Compiler) processBlock() {
@@ -344,6 +356,20 @@ func (cp *Compiler) visit() {
 	cp.processBlock()
 
 	cp.buf += "return _buffer.String()\n}"
+}
+
+func getValStr(e interface{}) string {
+	switch v := e.(type) {
+	case *Ast:
+		return v.TagName
+	case Token:
+		if !(v.Type == AT || v.Type == AT_COLON) {
+			return v.Text
+		}
+		return ""
+	default:
+		panic(e)
+	}
 }
 
 //func watchDir(input, output string, options Option) error {

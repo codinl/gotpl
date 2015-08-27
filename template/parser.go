@@ -13,6 +13,7 @@ const (
 	MKP
 	NODE
 	EXP
+	BLOCK
 )
 
 var PAIRS = map[int]int{
@@ -62,6 +63,8 @@ func (parser *Parser) Run() error {
 			err = parser.handleMKP(curToken)
 		case NODE:
 			err = parser.handleNode(curToken)
+		case BLOCK:
+			err = parser.handleBlock(curToken)
 		case EXP:
 			err = parser.handleEXP(curToken)
 		}
@@ -94,7 +97,7 @@ func (parser *Parser) handleMKP(token Token) error {
 				}
 				parser.ast = parser.ast.beget(EXP, "")
 			// 关键字 {
-			case KEYWORD, BRACE_OPEN: //BLK
+			case KEYWORD, BRACE_OPEN: //NODE
 				if len(parser.ast.Children) == 0 {
 					parser.ast = parser.ast.Parent
 					parser.ast.popChild()
@@ -106,6 +109,20 @@ func (parser *Parser) handleMKP(token Token) error {
 				next.Type = CONTENT
 				parser.ast.addChild(parser.nextToken())
 			default:
+				parser.ast.addChild(parser.nextToken())
+			}
+		}
+	// @block
+	case AT_BLOCK:
+		next_1 := parser.peekToken(1)
+		if next_1 != nil {
+			if next_1.Type == IDENTIFIER {
+				if len(parser.ast.Children) == 0 {
+					parser.ast = parser.ast.Parent
+					parser.ast.popChild()
+				}
+				parser.ast = parser.ast.beget(BLOCK, next_1.Text)
+			} else {
 				parser.ast.addChild(parser.nextToken())
 			}
 		}
@@ -192,8 +209,7 @@ func (parser *Parser) handleNode(token Token) error {
 
 	// { (
 	case BRACE_OPEN, PAREN_OPEN:
-		subMode := NODE
-		parser.subParse(token, subMode, false)
+		parser.subParse(token, NODE, false)
 		subTokens := parser.advanceUntilNot(WHITESPACE)
 		next := parser.peekToken(0)
 		if next != nil && next.Type != KEYWORD &&
@@ -204,9 +220,68 @@ func (parser *Parser) handleNode(token Token) error {
 		} else {
 			parser.ast.addChildren(subTokens)
 		}
+
 	default:
 		parser.ast.addChild(token)
 	}
+
+	return nil
+}
+
+func (parser *Parser) handleBlock(token Token) error {
+	next := parser.peekToken(0)
+	switch token.Type {
+	case AT:
+		if next.Type != AT {
+			parser.deferToken(token)
+			parser.ast = parser.ast.beget(MKP, "")
+		} else {
+			next.Type = CONTENT
+			parser.ast.addChild(*next)
+			parser.skipToken()
+		}
+
+	case AT_STAR_OPEN:
+		parser.advanceUntil(token, AT_STAR_OPEN, AT_STAR_CLOSE, AT, AT)
+
+	case AT_COLON:
+		parser.subParse(token, MKP, true)
+
+	case TEXT_TAG_OPEN, TEXT_TAG_CLOSE, HTML_TAG_OPEN, HTML_TAG_CLOSE, COMMENT_TAG_OPEN, COMMENT_TAG_CLOSE:
+		parser.ast = parser.ast.beget(MKP, "")
+		parser.deferToken(token)
+
+	// ' " `
+	case SINGLE_QUOTE, DOUBLE_QUOTE:
+		subTokens, err := parser.advanceUntil(token, token.Type, PAIRS[token.Type], BACKSLASH, BACKSLASH)
+		if err != nil {
+			return err
+		}
+		for idx, _ := range subTokens {
+			if subTokens[idx].Type == AT {
+				subTokens[idx].Type = CONTENT
+			}
+		}
+		parser.ast.addChildren(subTokens)
+
+	// { (
+	case BRACE_OPEN, PAREN_OPEN:
+		parser.subParse(token, MKP, false)
+		subTokens := parser.advanceUntilNot(WHITESPACE)
+		next := parser.peekToken(0)
+		if next != nil && next.Type != KEYWORD &&
+		next.Type != BRACE_OPEN &&
+		token.Type != PAREN_OPEN {
+			parser.tokens = append(parser.tokens, subTokens...)
+			parser.ast = parser.ast.Parent
+		} else {
+			parser.ast.addChildren(subTokens)
+		}
+
+	default:
+		parser.ast.addChild(token)
+	}
+
 	return nil
 }
 
@@ -287,6 +362,7 @@ func (parser *Parser) handleEXP(token Token) error {
 			parser.ast.addChild(token)
 		}
 	}
+
 	return nil
 }
 
@@ -316,7 +392,7 @@ func (parser *Parser) subParse(token Token, modeOpen int, includeDelim bool) err
 
 func (parser *Parser) prevToken(idx int) *Token {
 	l := len(parser.preTokens)
-	if l < idx+1 {
+	if idx > l-1 {
 		return nil
 	}
 	return &(parser.preTokens[l-1-idx])
@@ -416,6 +492,8 @@ func (ast *Ast) ModeStr() string {
 		return "NODE"
 	case EXP:
 		return "EXPRESSION"
+	case BLOCK:
+		return "BLOCK"
 	default:
 		return "UNDEF"
 	}
