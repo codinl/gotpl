@@ -165,7 +165,7 @@ func generate(input string, output string, option Option) error {
 	return err
 }
 
-func run(input string, Options Option) (*Compiler, error) {
+func run(input string, options Option) (*Compiler, error) {
 	content, err := ioutil.ReadFile(input)
 	if err != nil {
 		return nil, err
@@ -181,7 +181,7 @@ func run(input string, Options Option) (*Compiler, error) {
 	}
 
 	//DEBUG
-	if Options["Debug"] == true {
+	if options["Debug"] == true {
 		fmt.Println("------------------- TOKEN START -----------------")
 		for _, elem := range tokens {
 			elem.debug()
@@ -191,7 +191,7 @@ func run(input string, Options Option) (*Compiler, error) {
 
 	parser := &Parser{ast: &Ast{}, rootAst: nil,
 		tokens: tokens, preTokens: []Token{},
-		saveTextTag: false, initMode: UNK}
+		initMode: UNK, blocks:map[string]*Ast{}}
 
 	// Run() -> ast
 	err = parser.Run()
@@ -201,7 +201,7 @@ func run(input string, Options Option) (*Compiler, error) {
 	}
 
 	//DEBUG
-	if Options["Debug"] == true {
+	if options["Debug"] == true {
 		fmt.Println("--------------------- AST START -----------------")
 		parser.ast.debug(0, 20)
 		fmt.Println("--------------------- AST END -----------------\n")
@@ -209,7 +209,8 @@ func run(input string, Options Option) (*Compiler, error) {
 			panic("TYPE")
 		}
 	}
-	cp := makeCompiler(parser.ast, Options, input)
+
+	cp := makeCompiler(parser.ast, options, input)
 
 	// visit() -> cp.buf
 	cp.visit()

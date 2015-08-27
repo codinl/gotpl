@@ -31,8 +31,9 @@ type Parser struct {
 	rootAst     *Ast
 	tokens      []Token
 	preTokens   []Token
-	saveTextTag bool
+//	saveTextTag bool
 	initMode    int
+	blocks      map[string]*Ast
 }
 
 func (parser *Parser) Run() error {
@@ -122,6 +123,7 @@ func (parser *Parser) handleMKP(token Token) error {
 					parser.ast.popChild()
 				}
 				parser.ast = parser.ast.beget(BLOCK, next_1.Text)
+				parser.blocks[parser.ast.TagName] = parser.ast
 			} else {
 				parser.ast.addChild(parser.nextToken())
 			}
@@ -377,7 +379,7 @@ func (parser *Parser) subParse(token Token, modeOpen int, includeDelim bool) err
 	if !includeDelim {
 		parser.ast.addChild(token)
 	}
-	_parser := &Parser{&Ast{}, nil, subTokens, []Token{}, false, modeOpen}
+	_parser := &Parser{&Ast{}, nil, subTokens, []Token{}, false, modeOpen, map[string]*Ast{}}
 	_parser.Run()
 	if includeDelim {
 		_parser.ast.Children = append([]interface{}{token}, _parser.ast.Children...)

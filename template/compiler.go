@@ -28,8 +28,7 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 	if options["NameNotChange"] == nil {
 		file = Capitalize(file)
 	}
-	return &Compiler{ast: ast, buf: "",
-		layout: "", firstNode: 0,
+	return &Compiler{ast: ast, buf: "",firstNode: 0,
 		params: []string{}, parts: []Part{},
 		imports: map[string]bool{},
 		options: options,
@@ -42,7 +41,7 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 type Compiler struct {
 	ast       *Ast
 	buf       string //the final result
-	layout    string
+//	layout    string
 	firstNode int
 	params    []string
 	parts     []Part

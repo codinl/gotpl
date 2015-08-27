@@ -140,7 +140,6 @@ func (lexer *Lexer) Scan() ([]Token, error) {
 			} else if peekNext("*", left[1:]) {
 				token = makeToken("@*", AT_STAR_OPEN)
 			} else if peekNext("block", left[1:]) {
-				fmt.Println(`makeToken("@block", AT_BLOCK)`)
 				token = makeToken("@block", AT_BLOCK)
 			} else if peekNext("section", left[1:]) {
 				token = makeToken("@section", AT_SECTION)
