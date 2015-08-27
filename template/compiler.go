@@ -33,7 +33,7 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 		imports: map[string]bool{},
 		options: options,
 		dir:     dir,
-		file:    file,
+		fileName:    file,
 	}
 }
 
@@ -47,7 +47,7 @@ type Compiler struct {
 	imports   map[string]bool
 	options   Option
 	dir       string
-	file      string
+	fileName  string
 }
 
 func (cp *Compiler) visitAst(ast *Ast) {
@@ -327,7 +327,7 @@ func (cp *Compiler) visit() {
 	// genPart() -> cp.buf
 	cp.genPart()
 
-	fun := cp.file
+	funcName := cp.fileName
 
 	cp.imports[`"bytes"`] = true
 	head := "package tpl\n\n import (\n"
@@ -336,7 +336,7 @@ func (cp *Compiler) visit() {
 			head += k + "\n"
 		}
 	}
-	head += "\n)\n func " + fun + "("
+	head += "\n)\n func " + funcName + "("
 	for idx, p := range cp.params {
 		head += p
 		if idx != len(cp.params)-1 {

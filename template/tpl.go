@@ -10,43 +10,52 @@ import (
 type Tpl struct {
 	name     string
 	parent   *Tpl
-	content  []byte
+	raw 	 []byte
+	result 	 string
 	tokens   []*Token
 	ast      *Ast
 	blocks   map[string]*Ast
 	sections map[string]*Ast
+	option Option
 }
 
-func (tpl Tpl) Generate() error {
-	//	dir := filepath.Base(filepath.Dir(input))
-	//	file := strings.Replace(filepath.Base(input), TPL_EXT, "", 1)
-	//	if options["NameNotChange"] == nil {
-	//		file = Capitalize(file)
-	//	}
+func InitTpl(name string, option Option) (*Tpl, error) {
+	tpl := &Tpl{name:name,option:option}
 
-	cp := &Compiler{
-		ast: tpl.ast, buf: "", firstNode: 0,
-		params: []string{}, parts: []Part{},
-		imports: map[string]bool{},
-		//		options: options,
-		//		dir:     dir,
-		//		file:    file,
+	err := tpl.content()
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
 	}
 
-	// visit() -> cp.buf
-	cp.visit()
+	return tpl, nil
+}
 
-	err := ioutil.WriteFile(tpl.outpath(), []byte(cp.buf), 0644)
+func (tpl Tpl) Generate(option Option) error {
+	err := tpl.genToken()
 	if err != nil {
-		panic(err)
+		return err
+	}
+
+	err = tpl.genAst()
+	if err != nil {
+		return err
+	}
+
+	err = tpl.compile()
+	if err != nil {
+		return err
 	}
 
 	err = tpl.fmt()
+	if err != nil {
+		return err
+	}
 
-	//	if option["Debug"] == true {
-	//		content, _ := ioutil.ReadFile(output)
-	//		fmt.Println(string(content))
-	//	}
+	err = tpl.output()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -81,11 +90,37 @@ func (tpl Tpl) genAst() error {
 	return nil
 }
 
-func (tpl Tpl) content() {
-	content, err := ioutil.ReadFile(tpl.path())
-	if err == nil {
-		tpl.content = content
+func (tpl Tpl) compile() error {
+	//	dir := filepath.Base(filepath.Dir(input))
+	//	file := strings.Replace(filepath.Base(input), TPL_EXT, "", 1)
+	//	if options["NameNotChange"] == nil {
+	//		file = Capitalize(file)
+	//	}
+
+	cp := &Compiler{
+		ast: tpl.ast, buf: "", firstNode: 0,
+		params: []string{}, parts: []Part{},
+		imports: map[string]bool{},
+		//		options: options,
+		//		dir:     dir,
+		//		file:    file,
 	}
+
+	// visit() -> cp.buf
+	cp.visit()
+
+	tpl.result = cp.buf
+
+	return nil
+}
+
+func (tpl Tpl) content() error {
+	content, err := ioutil.ReadFile(tpl.path())
+	if err != nil {
+		return err
+	}
+	tpl.content = content
+	return nil
 }
 
 func (tpl Tpl) path() string {
@@ -109,5 +144,13 @@ func (tpl Tpl) fmt() error {
 		return err
 	}
 
+	return nil
+}
+
+func (tpl Tpl) output() error {
+	err := ioutil.WriteFile(tpl.outpath(), []byte(tpl.result), 0644)
+	if err != nil {
+		return  err
+	}
 	return nil
 }
