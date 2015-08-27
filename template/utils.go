@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -68,4 +69,8 @@ func getFiles(dir string) ([]string, error) {
 	}
 
 	return fileNames, nil
+}
+
+func rec(reg string) *regexp.Regexp {
+	return regexp.MustCompile("^" + reg)
 }

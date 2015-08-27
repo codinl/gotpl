@@ -27,13 +27,13 @@ var PAIRS = map[int]int{
 }
 
 type Parser struct {
-	ast         *Ast
-	rootAst     *Ast
-	tokens      []Token
-	preTokens   []Token
-//	saveTextTag bool
-	initMode    int
-	blocks      map[string]*Ast
+	ast       *Ast
+	rootAst   *Ast
+	tokens    []Token
+	preTokens []Token
+	//	saveTextTag bool
+	initMode int
+	blocks   map[string]*Ast
 }
 
 func (parser *Parser) Run() error {
@@ -129,37 +129,37 @@ func (parser *Parser) handleMKP(token Token) error {
 			}
 		}
 
-//	// <text> html标签开始
-//	case TEXT_TAG_OPEN, HTML_TAG_OPEN:
-//		tagName, _ := regMatch(`(?i)(^<([^\/ >]+))`, token.Text)
-//		tagName = strings.Replace(tagName, "<", "", -1)
-//		//TODO
-//		if parser.ast.TagName != "" {
-//			parser.ast = parser.ast.beget(MKP, tagName)
-//		} else {
-//			parser.ast.TagName = tagName
-//		}
-//		if token.Type == HTML_TAG_OPEN || parser.saveTextTag {
-//			parser.ast.addChild(token)
-//		}
-//
-//	// </text> html标签结束
-//	case TEXT_TAG_CLOSE, HTML_TAG_CLOSE:
-//		tagName, _ := regMatch(`(?i)^<\/([^>]+)`, token.Text)
-//		tagName = strings.Replace(tagName, "</", "", -1)
-//		//TODO
-//		opener := parser.ast.closest(MKP, tagName)
-//		if opener.TagName == tagName {
-//			parser.ast = opener
-//		}
-//		if token.Type == HTML_TAG_CLOSE || parser.saveTextTag {
-//			parser.ast.addChild(token)
-//		}
-//
-//		// so that we can keep in a right hierarchy
-//		if parser.ast.Parent != nil && parser.ast.Parent.Mode == NODE {
-//			parser.ast = parser.ast.Parent
-//		}
+		//	// <text> html标签开始
+		//	case TEXT_TAG_OPEN, HTML_TAG_OPEN:
+		//		tagName, _ := regMatch(`(?i)(^<([^\/ >]+))`, token.Text)
+		//		tagName = strings.Replace(tagName, "<", "", -1)
+		//		//TODO
+		//		if parser.ast.TagName != "" {
+		//			parser.ast = parser.ast.beget(MKP, tagName)
+		//		} else {
+		//			parser.ast.TagName = tagName
+		//		}
+		//		if token.Type == HTML_TAG_OPEN || parser.saveTextTag {
+		//			parser.ast.addChild(token)
+		//		}
+		//
+		//	// </text> html标签结束
+		//	case TEXT_TAG_CLOSE, HTML_TAG_CLOSE:
+		//		tagName, _ := regMatch(`(?i)^<\/([^>]+)`, token.Text)
+		//		tagName = strings.Replace(tagName, "</", "", -1)
+		//		//TODO
+		//		opener := parser.ast.closest(MKP, tagName)
+		//		if opener.TagName == tagName {
+		//			parser.ast = opener
+		//		}
+		//		if token.Type == HTML_TAG_CLOSE || parser.saveTextTag {
+		//			parser.ast.addChild(token)
+		//		}
+		//
+		//		// so that we can keep in a right hierarchy
+		//		if parser.ast.Parent != nil && parser.ast.Parent.Mode == NODE {
+		//			parser.ast = parser.ast.Parent
+		//		}
 
 	// html空结束
 	case HTML_TAG_VOID_CLOSE:
@@ -215,8 +215,8 @@ func (parser *Parser) handleNode(token Token) error {
 		subTokens := parser.advanceUntilNot(WHITESPACE)
 		next := parser.peekToken(0)
 		if next != nil && next.Type != KEYWORD &&
-		next.Type != BRACE_OPEN &&
-		token.Type != PAREN_OPEN {
+			next.Type != BRACE_OPEN &&
+			token.Type != PAREN_OPEN {
 			parser.tokens = append(parser.tokens, subTokens...)
 			parser.ast = parser.ast.Parent
 		} else {
@@ -272,8 +272,8 @@ func (parser *Parser) handleBlock(token Token) error {
 		subTokens := parser.advanceUntilNot(WHITESPACE)
 		next := parser.peekToken(0)
 		if next != nil && next.Type != KEYWORD &&
-		next.Type != BRACE_OPEN &&
-		token.Type != PAREN_OPEN {
+			next.Type != BRACE_OPEN &&
+			token.Type != PAREN_OPEN {
 			parser.tokens = append(parser.tokens, subTokens...)
 			parser.ast = parser.ast.Parent
 		} else {
@@ -348,8 +348,8 @@ func (parser *Parser) handleEXP(token Token) error {
 	case PERIOD:
 		next := parser.peekToken(0)
 		if next != nil && (next.Type == IDENTIFIER || next.Type == KEYWORD ||
-		next.Type == PERIOD ||
-		(parser.ast.Parent != nil && parser.ast.Parent.Mode == EXP)) {
+			next.Type == PERIOD ||
+			(parser.ast.Parent != nil && parser.ast.Parent.Mode == EXP)) {
 			parser.ast.addChild(token)
 		} else {
 			parser.ast = parser.ast.Parent
@@ -474,7 +474,6 @@ func (parser *Parser) advanceUntil(token Token, start, end, startEsc, endEsc int
 	}
 	return tokens, nil
 }
-
 
 //------------------------------ Ast ------------------------------//
 type Ast struct {

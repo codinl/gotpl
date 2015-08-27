@@ -1,20 +1,20 @@
 package template
 
 import (
-	"io/ioutil"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 )
 
 type Tpl struct {
-	name       string
-	parent     *Tpl
-	content    []byte
-	tokens     []*Token
-	ast        *Ast
-	blocks     map[string]*Ast
-	sections   map[string]*Ast
+	name     string
+	parent   *Tpl
+	content  []byte
+	tokens   []*Token
+	ast      *Ast
+	blocks   map[string]*Ast
+	sections map[string]*Ast
 }
 
 func (tpl Tpl) Generate() error {
@@ -65,10 +65,10 @@ func (tpl Tpl) genToken() error {
 }
 
 func (tpl Tpl) genAst() error {
-	parser := &Parser {
-		ast: tpl.ast,tokens: tpl.tokens,
-		preTokens: []Token{},initMode: UNK,
-		blocks:tpl.blocks,
+	parser := &Parser{
+		ast: tpl.ast, tokens: tpl.tokens,
+		preTokens: []Token{}, initMode: UNK,
+		blocks: tpl.blocks,
 	}
 
 	// Run() -> ast

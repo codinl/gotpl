@@ -28,26 +28,26 @@ type Option map[string]interface{}
 //var Sections map[string]*Section
 
 func Generate(input string, output string, options Option) error {
-//	tplDir = input
-//
-//	tpl, err := buildTplTree(input)
-//	if err != nil {
-//		return err
-//	}
-//
-//	secs, err := genSections(tplDir)
-//	if err == nil {
-//		Sections = secs
-//	} else {
-//		Sections = nil
-//	}
-//
-//	err = tpl.genBlock()
-//	if err != nil {
-//		return err
-//	}
+	//	tplDir = input
+	//
+	//	tpl, err := buildTplTree(input)
+	//	if err != nil {
+	//		return err
+	//	}
+	//
+	//	secs, err := genSections(tplDir)
+	//	if err == nil {
+	//		Sections = secs
+	//	} else {
+	//		Sections = nil
+	//	}
+	//
+	//	err = tpl.genBlock()
+	//	if err != nil {
+	//		return err
+	//	}
 
-//	input = input + TMP_DIR
+	//	input = input + TMP_DIR
 
 	err := genFolder(input, output, options)
 	if err != nil {
@@ -90,9 +90,9 @@ func genFolder(input string, out string, options Option) (err error) {
 	visit := func(path string, info os.FileInfo, err error) error {
 		if !info.IsDir() {
 			//Just do file with extention .t
-//			if !strings.HasSuffix(path, TMP_EXT) {
-//				return nil
-//			}
+			//			if !strings.HasSuffix(path, TMP_EXT) {
+			//				return nil
+			//			}
 			if !strings.HasSuffix(path, TPL_EXT) {
 				return nil
 			}
@@ -109,7 +109,7 @@ func genFolder(input string, out string, options Option) (err error) {
 		//adjust with the abs path, so that we keep the same directory hierarchy
 		input, _ := filepath.Abs(path)
 		output := strings.Replace(input, input_abs, out_abs, 1)
-//		output = strings.Replace(output, TMP_EXT, GO_EXT, -1)
+		//		output = strings.Replace(output, TMP_EXT, GO_EXT, -1)
 		output = strings.Replace(output, TPL_EXT, GO_EXT, -1)
 		err := GenFile(path, output, options)
 		if err != nil {
@@ -191,7 +191,7 @@ func run(input string, options Option) (*Compiler, error) {
 
 	parser := &Parser{ast: &Ast{}, rootAst: nil,
 		tokens: tokens, preTokens: []Token{},
-		initMode: UNK, blocks:map[string]*Ast{}}
+		initMode: UNK, blocks: map[string]*Ast{}}
 
 	// Run() -> ast
 	err = parser.Run()

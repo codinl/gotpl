@@ -28,7 +28,7 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 	if options["NameNotChange"] == nil {
 		file = Capitalize(file)
 	}
-	return &Compiler{ast: ast, buf: "",firstNode: 0,
+	return &Compiler{ast: ast, buf: "", firstNode: 0,
 		params: []string{}, parts: []Part{},
 		imports: map[string]bool{},
 		options: options,
@@ -41,7 +41,6 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 type Compiler struct {
 	ast       *Ast
 	buf       string //the final result
-//	layout    string
 	firstNode int
 	params    []string
 	parts     []Part
@@ -100,17 +99,13 @@ func (cp *Compiler) visitAst(ast *Ast) {
 				continue
 			}
 
-			if (idx == len(ast.Children)-1) {
+			if idx == len(ast.Children)-1 {
 				continue
 			}
 
-//			fmt.Println("--------idx", idx)
-
 			if _, ok := c.(Token); ok {
-//				fmt.Println("--------cp.visitMKP(c, ast)")
 				cp.visitMKP(c, ast)
 			} else {
-//				fmt.Println("--------cp.visitAst(c.(*Ast))")
 				cp.visitAst(c.(*Ast))
 			}
 		}
