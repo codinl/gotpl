@@ -11,6 +11,15 @@ import (
 )
 
 func Generate(input string, output string, option Option) error {
+	sections, err := genSection(input)
+	if err != nil {
+		return err
+	}
+
+//	for _, sec := range sections {
+//		fmt.Println("=-=-=-=-=-=-=-=name=",string(sec.name), ",,,,text=", string(sec.text))
+//	}
+
 	tplMap := map[string]*Tpl{}
 
 	paths, err := getFiles(input, TPL_EXT)
@@ -31,6 +40,8 @@ func Generate(input string, output string, option Option) error {
 			fmt.Println(err)
 			return err
 		}
+
+		tpl.checkSection(sections)
 
 		err = tpl.checkExtends()
 		if err != nil {
@@ -71,11 +82,49 @@ func Generate(input string, output string, option Option) error {
 	return nil
 }
 
+func genSection(input string) (map[string]*Section, error) {
+	dir := input + SEC_DIR
+	if !exists(dir) {
+		return nil, nil
+	}
+
+	paths, err := getFiles(dir, TPL_EXT)
+	if err != nil {
+		return nil, err
+	}
+
+	sections := map[string]*Section{}
+
+	for i := 0; i < len(paths); i++ {
+		path := paths[i]
+
+		raw, err := ioutil.ReadFile(path)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		ss := bytes.Split(raw, []byte("@section"))
+		for _, s := range ss {
+			idx := bytes.Index(s, []byte("("))
+			idx_2 := bytes.Index(s, []byte("{"))
+			idxEnd := bytes.LastIndex(s, []byte("}"))
+			if idx > 0 && idx_2 > 0 && idxEnd > 0 {
+				name := string(bytes.TrimSpace(s[:idx]))
+				text := bytes.TrimSpace(s[idx_2+1:idxEnd])
+				section := &Section{name:name, text:text}
+				sections[name] = section
+			}
+		}
+	}
+
+	return sections, nil
+}
+
 type Tpl struct {
 	path   string
 	name   string
 	isRoot bool
-	//	level      int
 	parent     *Tpl
 	parentName string
 	raw        []byte
@@ -115,23 +164,23 @@ func (tpl *Tpl) gen() error {
 		return err
 	}
 
-//	fmt.Println(tpl.name, "------------------- TOKEN START -----------------")
-//	for _, elem := range tpl.tokens {
-//		elem.debug()
-//	}
-//	fmt.Println(tpl.name, "--------------------- TOKEN END -----------------\n")
+	//	fmt.Println(tpl.name, "------------------- TOKEN START -----------------")
+	//	for _, elem := range tpl.tokens {
+	//		elem.debug()
+	//	}
+	//	fmt.Println(tpl.name, "--------------------- TOKEN END -----------------\n")
 
 	err = tpl.genAst()
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(tpl.name, "--------------------- AST START -----------------")
-	tpl.ast.debug(0, 20)
-	fmt.Println(tpl.name, "--------------------- AST END -----------------\n")
-	if tpl.ast.Mode != PRG {
-		panic("TYPE")
-	}
+//	fmt.Println(tpl.name, "--------------------- AST START -----------------")
+	//	tpl.ast.debug(0, 20)
+	//	fmt.Println(tpl.name, "--------------------- AST END -----------------\n")
+	//	if tpl.ast.Mode != PRG {
+	//		panic("TYPE")
+	//	}
 
 	err = tpl.genResult()
 	if err != nil {
@@ -215,7 +264,32 @@ func (tpl *Tpl) readRaw() error {
 		return err
 	}
 	tpl.raw = raw
+	return nil
+}
 
+func (tpl *Tpl) checkSection(sections map[string]*Section) error {
+	idx := bytes.Index(tpl.raw, []byte("@section"))
+	if idx > 0 {
+		left := tpl.raw[idx+len("@section"):]
+		idx_1 := bytes.Index(left, []byte("("))
+		idx_2 := bytes.Index(left, []byte(")"))
+		if idx_1 > 0 && idx_2 > 0 {
+			name := string(bytes.TrimSpace(left[:idx_1]))
+			fmt.Println("----------name===", name)
+			tpl.raw = tpl.raw[:idx]
+			left_1 := left[idx_2+1:]
+			if sections != nil {
+				if section, ok := sections[name]; ok {
+					tem := append(section.text, '\n')
+					left_1 = append(tem, left_1...)
+				}
+			}
+			tpl.raw = append(tpl.raw, left_1...)
+		} else {
+			tpl.raw = bytes.Replace(tpl.raw, []byte("@section"), []byte(""), 1)
+		}
+		return tpl.checkSection(sections)
+	}
 	return nil
 }
 
@@ -241,6 +315,7 @@ func (tpl *Tpl) checkExtends() error {
 	}
 	return nil
 }
+
 
 func (tpl *Tpl) getOutPath() string {
 	return "./gen/" + tpl.name + ".go"
