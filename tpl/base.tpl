@@ -1,17 +1,15 @@
-<html>
-
-@block aa {
-    aaaa
-
-    @block bb {
-        bbb
-    }
-
-    @block cc {
-        ccc
-    }
+@{
+    testp int
 }
 
-@section Pagination(curPage int)
+zzz
 
-</html>
+
+@block aa {
+  aaa
+  @block bb {
+    bbb
+  }
+}
+
+@section sec()
