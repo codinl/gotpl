@@ -133,7 +133,7 @@ func (tpl *Tpl) gen() error {
 		panic("TYPE")
 	}
 
-	err = tpl.compile()
+	err = tpl.genResult()
 	if err != nil {
 		return err
 	}
@@ -181,35 +181,15 @@ func (tpl *Tpl) genAst() error {
 
 	if !tpl.isRoot && tpl.parent != nil {
 		tpl.ast = tpl.parent.ast
-//		fmt.Println("len(tpl.blocks)==", len(tpl.blocks))
 		if tpl.blocks != nil && len(tpl.blocks) > 0 {
-			replaceBlock(tpl.ast, tpl.blocks)
+			updateAst(tpl.ast, tpl.blocks)
 		}
 	}
 
 	return nil
 }
 
-func replaceBlock(ast *Ast, blocks map[string]*Ast) {
-	if ast.Children == nil || len(ast.Children) == 0 || blocks == nil || len(blocks) == 0 {
-		return
-	}
-	for idx, c := range ast.Children {
-		if a, ok := c.(*Ast); ok {
-			if a.Mode == BLOCK {
-//				fmt.Println("-------ast.TagName", a.TagName)
-				if b, ok := blocks[a.TagName]; ok {
-					fmt.Println("-------ast.TagName", a.TagName)
-					ast.Children[idx] = b
-					delete(blocks, ast.TagName)
-				}
-			}
-			replaceBlock(a, blocks)
-		}
-	}
-}
-
-func (tpl *Tpl) compile() error {
+func (tpl *Tpl) genResult() error {
 	cp := &Compiler{
 		tpl: tpl,
 		ast: tpl.ast, buf: "",
@@ -266,17 +246,17 @@ func (tpl *Tpl) getOutPath() string {
 	return "./gen/" + tpl.name + ".go"
 }
 
-func (tpl *Tpl) fmt() error {
-	cmd := exec.Command("gofmt", "-w", tpl.getOutPath())
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Println("gofmt: ", err)
-		return err
-	}
-
-	return nil
-}
+//func (tpl *Tpl) fmt() error {
+//	cmd := exec.Command("gofmt", "-w", tpl.getOutPath())
+//	cmd.Stdout = os.Stdout
+//	cmd.Stderr = os.Stderr
+//	if err := cmd.Run(); err != nil {
+//		fmt.Println("gofmt: ", err)
+//		return err
+//	}
+//
+//	return nil
+//}
 
 func (tpl *Tpl) output() error {
 	outDir := "./gen/"
@@ -293,4 +273,21 @@ func (tpl *Tpl) output() error {
 		return err
 	}
 	return nil
+}
+
+func updateAst(ast *Ast, blocks map[string]*Ast) {
+	if ast.Children == nil || len(ast.Children) == 0 || blocks == nil || len(blocks) == 0 {
+		return
+	}
+	for idx, c := range ast.Children {
+		if a, ok := c.(*Ast); ok {
+			if a.Mode == BLOCK {
+				if b, ok := blocks[a.TagName]; ok {
+					ast.Children[idx] = b
+					delete(blocks, ast.TagName)
+				}
+			}
+			updateAst(a, blocks)
+		}
+	}
 }
