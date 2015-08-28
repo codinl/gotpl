@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func Generate(input string, option Option) error {
+func Generate(input string, output string, option Option) error {
 	tplMap := map[string]*Tpl{}
 
 	paths, err := getFiles(input, TPL_EXT)
@@ -42,32 +42,30 @@ func Generate(input string, option Option) error {
 	}
 
 	for key, tpl := range tplMap {
-		fmt.Println("key========", key)
-		fmt.Println("tpl.name========", tpl.name)
-		tpl.parentName = strings.TrimSpace(tpl.parentName)
-		fmt.Println("tpl.parentName====", strings.TrimSpace(tpl.parentName))
-
 		if !tpl.isRoot {
-//			_, oo := tplMap[tpl.parentName]
-//			fmt.Println("oo====", oo)
-
 			if p, ok := tplMap[tpl.parentName]; ok {
 				tplMap[key].parent = p
 			} else {
-				fmt.Println(tpl.name, "--parent not exists")
+				fmt.Println(tpl.parentName, "--parent not exists")
 				delete(tplMap, key)
 			}
 		}
 	}
 
 	for _, tpl := range tplMap {
-//		fmt.Println("tpl.name========", tpl.name)
-
 		err = tpl.generate()
 		if err != nil {
 			fmt.Println(err)
 			return err
 		}
+	}
+
+	cmd := exec.Command("gofmt", "-w", output)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Println("gofmt: ", err)
+		return err
 	}
 
 	return nil
@@ -91,8 +89,6 @@ type Tpl struct {
 }
 
 func (tpl *Tpl) generate() error {
-//	fmt.Println(tpl.name, "--------generate")
-
 	if tpl.generated {
 		return nil
 	}
@@ -100,7 +96,6 @@ func (tpl *Tpl) generate() error {
 	if tpl.isRoot {
 		return tpl.gen()
 	} else {
-		fmt.Println(tpl.parent.name)
 		if tpl.parent != nil {
 			tpl.parent.generate()
 			return tpl.gen()
@@ -120,20 +115,20 @@ func (tpl *Tpl) gen() error {
 		return err
 	}
 
-	fmt.Println(tpl.name,"------------------- TOKEN START -----------------")
-	for _, elem := range tpl.tokens {
-		elem.debug()
-	}
-	fmt.Println(tpl.name,"--------------------- TOKEN END -----------------\n")
+//	fmt.Println(tpl.name, "------------------- TOKEN START -----------------")
+//	for _, elem := range tpl.tokens {
+//		elem.debug()
+//	}
+//	fmt.Println(tpl.name, "--------------------- TOKEN END -----------------\n")
 
 	err = tpl.genAst()
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(tpl.name,"--------------------- AST START -----------------")
+	fmt.Println(tpl.name, "--------------------- AST START -----------------")
 	tpl.ast.debug(0, 20)
-	fmt.Println(tpl.name,"--------------------- AST END -----------------\n")
+	fmt.Println(tpl.name, "--------------------- AST END -----------------\n")
 	if tpl.ast.Mode != PRG {
 		panic("TYPE")
 	}
@@ -184,7 +179,34 @@ func (tpl *Tpl) genAst() error {
 		return err
 	}
 
+	if !tpl.isRoot && tpl.parent != nil {
+		tpl.ast = tpl.parent.ast
+//		fmt.Println("len(tpl.blocks)==", len(tpl.blocks))
+		if tpl.blocks != nil && len(tpl.blocks) > 0 {
+			replaceBlock(tpl.ast, tpl.blocks)
+		}
+	}
+
 	return nil
+}
+
+func replaceBlock(ast *Ast, blocks map[string]*Ast) {
+	if ast.Children == nil || len(ast.Children) == 0 || blocks == nil || len(blocks) == 0 {
+		return
+	}
+	for idx, c := range ast.Children {
+		if a, ok := c.(*Ast); ok {
+			if a.Mode == BLOCK {
+//				fmt.Println("-------ast.TagName", a.TagName)
+				if b, ok := blocks[a.TagName]; ok {
+					fmt.Println("-------ast.TagName", a.TagName)
+					ast.Children[idx] = b
+					delete(blocks, ast.TagName)
+				}
+			}
+			replaceBlock(a, blocks)
+		}
+	}
 }
 
 func (tpl *Tpl) compile() error {
@@ -198,36 +220,12 @@ func (tpl *Tpl) compile() error {
 		fileName: tpl.name,
 	}
 
-	if !tpl.isRoot && tpl.parent != nil {
-		tpl.ast = tpl.parent.ast
-		if tpl.blocks != nil && len(tpl.blocks) > 0 {
-			replaceBlock(tpl.ast, tpl.blocks)
-		}
-	}
-
 	// visit() -> cp.buf
 	cp.visit()
 
 	tpl.result = cp.buf
 
 	return nil
-}
-
-func replaceBlock(ast *Ast, blocks map[string]*Ast) {
-	if ast.Children == nil || len(ast.Children) == 0 || blocks == nil || len(blocks) == 0 {
-		return
-	}
-	for idx, c := range ast.Children {
-		if a, ok := c.(*Ast); ok {
-			if a.Mode == BLOCK {
-				if b, ok := blocks[ast.TagName]; ok {
-					ast.Children[idx] = b
-					delete(blocks, ast.TagName)
-				}
-			}
-			replaceBlock(a, blocks)
-		}
-	}
 }
 
 func (tpl *Tpl) readRaw() error {
