@@ -3,13 +3,13 @@ package template
 import (
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"io/ioutil"
-	"path/filepath"
 )
 
 func HTMLEscape(m interface{}) string {
@@ -50,7 +50,7 @@ func getFiles(dir string, fileExt string) ([]string, error) {
 		if !fi.IsDir() {
 			if strings.HasSuffix(fi.Name(), fileExt) {
 				abs, err := filepath.Abs(dir)
-//				fmt.Println(abs)
+				//				fmt.Println(abs)
 				if err == nil {
 					fileNames = append(fileNames, abs+"/"+fi.Name())
 				}

@@ -30,10 +30,10 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 	}
 	return &Compiler{ast: ast, buf: "", firstNode: 0,
 		params: []string{}, parts: []Part{},
-		imports: map[string]bool{},
-		options: options,
-		dir:     dir,
-		fileName:    file,
+		imports:  map[string]bool{},
+		options:  options,
+		dir:      dir,
+		fileName: file,
 	}
 }
 
@@ -327,7 +327,7 @@ func (cp *Compiler) visit() {
 	// genPart() -> cp.buf
 	cp.genPart()
 
-	funcName := cp.fileName
+	funcName := Capitalize(cp.fileName)
 
 	cp.imports[`"bytes"`] = true
 	head := "package tpl\n\n import (\n"

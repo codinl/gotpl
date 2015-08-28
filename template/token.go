@@ -11,16 +11,16 @@ const (
 	AT
 	ASSIGN_OPERATOR
 	AT_COLON
-	AT_STAR_CLOSE       // *@
-	AT_STAR_OPEN        // @*
+	AT_STAR_CLOSE // *@
+	AT_STAR_OPEN  // @*
 	BACKSLASH
-	BRACE_CLOSE         // }
-	BRACE_OPEN          // {
+	BRACE_CLOSE // }
+	BRACE_OPEN  // {
 	CONTENT
 	EMAIL
-	ESCAPED_QUOTE       // \"
-	HARD_PAREN_CLOSE    // ]
-	HARD_PAREN_OPEN     // [
+	ESCAPED_QUOTE    // \"
+	HARD_PAREN_CLOSE // ]
+	HARD_PAREN_OPEN  // [
 	HTML_TAG_OPEN
 	HTML_TAG_CLOSE
 	HTML_TAG_VOID_CLOSE
@@ -30,11 +30,11 @@ const (
 	NEWLINE
 	NUMERIC_CONTENT
 	OPERATOR
-	PAREN_CLOSE        // )
-	PAREN_OPEN         // (
-	PERIOD             // .
-	SINGLE_QUOTE       // '
-	DOUBLE_QUOTE       // "
+	PAREN_CLOSE  // )
+	PAREN_OPEN   // (
+	PERIOD       // .
+	SINGLE_QUOTE // '
+	DOUBLE_QUOTE // "
 	TEXT_TAG_CLOSE
 	TEXT_TAG_OPEN
 	COMMENT_TAG_OPEN

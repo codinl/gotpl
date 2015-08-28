@@ -1,147 +1,193 @@
 package template
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"bytes"
 )
 
-func BuildTplTree(input string, option Option) (*Tpl, error) {
-	rootTpl := &Tpl{name:"root"}
+func Generate(input string, option Option) error {
+	tplMap := map[string]*Tpl{}
 
 	paths, err := getFiles(input, TPL_EXT)
-	if err != nil {
-		return nil, err
-	}
-
-	for i := 0; i < len(paths); i++ {
-		path := paths[i]
-
-		fmt.Println("-----path=", path)
-
-		baseName := filepath.Base(path)
-		name := strings.Replace(baseName, "."+TPL_EXT, "", 1)
-
-		tpl := &Tpl{path: path, name: name, option: option}
-
-		err := tpl.readRaw()
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-
-		tpl.checkExtends()
-//
-//		err = tpl.Generate()
-//		if err != nil {
-//			os.Exit(2)
-//		}
-	}
-
-	return rootTpl, nil
-}
-
-func Generate(input string, out string, option Option) (err error) {
-//	if !exists(input) {
-//		err = os.MkdirAll(input, 0755)
-//		if err != nil {
-//			return err
-//		}
-//	}
-
-	//Make it
-	if !exists(out) {
-		os.MkdirAll(out, 0775)
-	}
-
-	input_abs, _ := filepath.Abs(input)
-	out_abs, _ := filepath.Abs(out)
-
-	paths, err := getFiles(input_abs, TPL_EXT)
 	if err != nil {
 		return err
 	}
 
-//	fun := func(path string, res chan<- string) {
-//		//adjust with the abs path, so that we keep the same directory hierarchy
-//		input, _ := filepath.Abs(path)
-//		output := strings.Replace(input, input_abs, out_abs, 1)
-//		//		output = strings.Replace(output, TMP_EXT, GO_EXT, -1)
-//		output = strings.Replace(output, TPL_EXT, GO_EXT, -1)
-//		err := GenFile(path, output, options)
-//		if err != nil {
-//			res <- fmt.Sprintf("%s -> %s", path, output)
-//			os.Exit(2)
-//		}
-//		res <- fmt.Sprintf("%s -> %s", path, output)
-//	}
-
-//	result := make(chan string, len(paths))
-
-	//	for i := 0; i < len(paths); i++ {
-	//		<-result
-	//	}
-
 	for i := 0; i < len(paths); i++ {
 		path := paths[i]
-		input, _ := filepath.Abs(path)
-		output := strings.Replace(input, input_abs, out_abs, 1)
-		output = strings.Replace(output, TPL_EXT, GO_EXT, -1)
 
-		outdir := filepath.Dir(output)
-		if !exists(outdir) {
-			os.MkdirAll(outdir, 0775)
+		baseName := filepath.Base(path)
+		name := strings.Replace(baseName, TPL_EXT, "", 1)
+		fmt.Println("name=",name)
+		fmt.Println("baseName=",baseName)
+
+		tpl := &Tpl{path: path, name: name, ast: &Ast{}, tokens:[]Token{}, blocks:map[string]*Ast{}, option: option}
+
+		err := tpl.readRaw()
+		if err != nil {
+			fmt.Println(err)
+			return err
 		}
 
-		tpl, err := InitTpl(input, option)
+		err = tpl.checkExtends()
 		if err != nil {
-			os.Exit(2)
+			fmt.Println(err)
+			return err
 		}
 
-		err = tpl.Generate()
-		if err != nil {
-			os.Exit(2)
+		tplMap[tpl.name] = tpl
+	}
+
+	for _, tpl := range tplMap {
+		if tpl.parentName == "" {
+			tpl.isRoot = true
+			tpl.parent = nil
+//			tpl.level = 0
+//			Tpls[tpl.level][tpl.name] = tpl
+		} else {
+			tpl.parent = tplMap[tpl.parentName]
+//			tpl.level = tpl.parent.level + 1
+//			Tpls[tpl.level][tpl.name] = tpl
 		}
 	}
 
-	//	if options["Watch"] != nil {
-	//		watchDir(incdir_abs, outdir_abs, options)
-	//	}
+	for _, tpl := range tplMap {
+		err = tpl.generate()
+		if err != nil {
+			fmt.Println(err)
+			return err
+		}
+	}
 
-	return
+	return nil
 }
+
+//func Generate(input string, out string, option Option) (err error) {
+//	//	if !exists(input) {
+//	//		err = os.MkdirAll(input, 0755)
+//	//		if err != nil {
+//	//			return err
+//	//		}
+//	//	}
+//
+//	//Make it
+//	if !exists(out) {
+//		os.MkdirAll(out, 0775)
+//	}
+//
+//	input_abs, _ := filepath.Abs(input)
+//	out_abs, _ := filepath.Abs(out)
+//
+//	paths, err := getFiles(input_abs, TPL_EXT)
+//	if err != nil {
+//		return err
+//	}
+//
+//	//	fun := func(path string, res chan<- string) {
+//	//		//adjust with the abs path, so that we keep the same directory hierarchy
+//	//		input, _ := filepath.Abs(path)
+//	//		output := strings.Replace(input, input_abs, out_abs, 1)
+//	//		//		output = strings.Replace(output, TMP_EXT, GO_EXT, -1)
+//	//		output = strings.Replace(output, TPL_EXT, GO_EXT, -1)
+//	//		err := GenFile(path, output, options)
+//	//		if err != nil {
+//	//			res <- fmt.Sprintf("%s -> %s", path, output)
+//	//			os.Exit(2)
+//	//		}
+//	//		res <- fmt.Sprintf("%s -> %s", path, output)
+//	//	}
+//
+//	//	result := make(chan string, len(paths))
+//
+//	//	for i := 0; i < len(paths); i++ {
+//	//		<-result
+//	//	}
+//
+//	for i := 0; i < len(paths); i++ {
+//		path := paths[i]
+//		input, _ := filepath.Abs(path)
+//		output := strings.Replace(input, input_abs, out_abs, 1)
+//		output = strings.Replace(output, TPL_EXT, GO_EXT, -1)
+//
+//		outdir := filepath.Dir(output)
+//		if !exists(outdir) {
+//			os.MkdirAll(outdir, 0775)
+//		}
+//
+//		tpl, err := InitTpl(input, option)
+//		if err != nil {
+//			fmt.Println(err)
+//		}
+//
+//		err = tpl.generate()
+//		if err != nil {
+//			fmt.Println(err)
+//		}
+//	}
+//
+//	//	if options["Watch"] != nil {
+//	//		watchDir(incdir_abs, outdir_abs, options)
+//	//	}
+//
+//	return
+//}
 
 type Tpl struct {
-	path     string
-	name     string
-	level    int
-	parent   *Tpl
-	raw 	 []byte
-	result 	 string
-	tokens   []Token
-	ast      *Ast
-	blocks   map[string]*Ast
-	sections map[string]*Ast
-	option Option
+	path       string
+	name       string
+	isRoot	   bool
+//	level      int
+	parent     *Tpl
+	parentName string
+	raw        []byte
+	result     string
+	tokens     []Token
+	ast        *Ast
+	blocks     map[string]*Ast
+	sections   map[string]*Ast
+	generated  bool
+	option     Option
 }
 
-func InitTpl(name string, option Option) (*Tpl, error) {
-	tpl := &Tpl{name:name,option:option}
+//func InitTpl(name string, option Option) (*Tpl, error) {
+//	tpl := &Tpl{name: name, option: option}
+//
+//	err := tpl.readRaw()
+//	if err != nil {
+//		fmt.Println(err)
+//		return nil, err
+//	}
+//
+//	return tpl, nil
+//}
 
-	err := tpl.readRaw()
-	if err != nil {
-		fmt.Println(err)
-		return nil, err
+func (tpl *Tpl) generate() error {
+	if tpl.generated {
+		return nil
 	}
 
-	return tpl, nil
+	if tpl.isRoot {
+		return tpl.gen()
+	} else {
+		if tpl.parent != nil {
+			tpl.parent.generate()
+			return tpl.gen()
+		}
+	}
+
+	return nil
 }
 
-func (tpl *Tpl) Generate() error {
+func (tpl *Tpl) gen() error {
+	if tpl.generated {
+		return nil
+	}
+
 	err := tpl.genToken()
 	if err != nil {
 		return err
@@ -157,15 +203,17 @@ func (tpl *Tpl) Generate() error {
 		return err
 	}
 
-	err = tpl.fmt()
-	if err != nil {
-		return err
-	}
+//	err = tpl.fmt()
+//	if err != nil {
+//		return err
+//	}
 
 	err = tpl.output()
 	if err != nil {
 		return err
 	}
+
+	tpl.generated = true
 
 	return nil
 }
@@ -185,9 +233,8 @@ func (tpl *Tpl) genToken() error {
 
 func (tpl *Tpl) genAst() error {
 	parser := &Parser{
-		ast: tpl.ast, tokens: tpl.tokens,
+		ast: tpl.ast, tokens: tpl.tokens,blocks: tpl.blocks,
 		preTokens: []Token{}, initMode: UNK,
-		blocks: tpl.blocks,
 	}
 
 	// Run() -> ast
@@ -213,7 +260,7 @@ func (tpl *Tpl) compile() error {
 		imports: map[string]bool{},
 		//		options: options,
 		//		dir:     dir,
-		//		file:    file,
+		fileName: tpl.name,
 	}
 
 	// visit() -> cp.buf
@@ -235,10 +282,10 @@ func (tpl *Tpl) readRaw() error {
 	return nil
 }
 
-func (tpl *Tpl) checkExtends() {
+func (tpl *Tpl) checkExtends() error {
 	if bytes.HasPrefix(tpl.raw, []byte("@extends")) {
 		lineEnd := -1
-		for i:=len("@extends");i<len(tpl.raw);i++ {
+		for i := len("@extends"); i < len(tpl.raw); i++ {
 			if tpl.raw[i] == '\n' {
 				lineEnd = i
 				break
@@ -251,8 +298,8 @@ func (tpl *Tpl) checkExtends() {
 			fmt.Println("------parentName====", parentName)
 			tpl.raw = tpl.raw[lineEnd+1:]
 		}
-//		fmt.Println(string(tpl.raw))
 	}
+	return nil
 }
 
 func (tpl *Tpl) getOutPath() string {
@@ -272,9 +319,18 @@ func (tpl *Tpl) fmt() error {
 }
 
 func (tpl *Tpl) output() error {
-	err := ioutil.WriteFile(tpl.getOutPath(), []byte(tpl.result), 0644)
+	outDir := "./gen/"
+	if !exists(outDir) {
+		err := os.MkdirAll(outDir, 0755)
+		if err != nil {
+			return err
+		}
+	}
+
+	outpath := outDir + tpl.name + ".go"
+	err := ioutil.WriteFile(outpath, []byte(tpl.result), 0644)
 	if err != nil {
-		return  err
+		return err
 	}
 	return nil
 }
