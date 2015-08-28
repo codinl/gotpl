@@ -28,7 +28,8 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 	if options["NameNotChange"] == nil {
 		file = Capitalize(file)
 	}
-	return &Compiler{ast: ast, buf: "", firstNode: 0,
+	return &Compiler{
+		ast: ast, buf: "",
 		params: []string{}, parts: []Part{},
 		imports:  map[string]bool{},
 		options:  options,
@@ -39,9 +40,10 @@ func makeCompiler(ast *Ast, options Option, input string) *Compiler {
 
 //------------------------------ Compiler ------------------------------ //
 type Compiler struct {
+	tpl       *Tpl
 	ast       *Ast
 	buf       string //the final result
-	firstNode int
+	firstNode bool
 	params    []string
 	parts     []Part
 	imports   map[string]bool
@@ -53,7 +55,7 @@ type Compiler struct {
 func (cp *Compiler) visitAst(ast *Ast) {
 	switch ast.Mode {
 	case MKP:
-		cp.firstNode = 1
+		cp.firstNode = true
 		for _, c := range ast.Children {
 			if _, ok := c.(Token); ok {
 				cp.visitMKP(c, ast)
@@ -62,8 +64,8 @@ func (cp *Compiler) visitAst(ast *Ast) {
 			}
 		}
 	case NODE:
-		if cp.firstNode == 0 {
-			cp.firstNode = 1
+		if cp.firstNode == false {
+			cp.firstNode = true
 			cp.visitFirstNode(ast)
 		} else {
 			remove := false
@@ -110,7 +112,7 @@ func (cp *Compiler) visitAst(ast *Ast) {
 			}
 		}
 	case EXP:
-		cp.firstNode = 1
+		cp.firstNode = true
 		nonExp := ast.hasNonExp()
 		for i, c := range ast.Children {
 			if _, ok := c.(Token); ok {
