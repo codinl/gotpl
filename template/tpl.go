@@ -7,12 +7,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"bytes"
 )
 
 func BuildTplTree(input string, option Option) (*Tpl, error) {
 	rootTpl := &Tpl{name:"root"}
 
-	paths, err := getFiles(input)
+	paths, err := getFiles(input, TPL_EXT)
 	if err != nil {
 		return nil, err
 	}
@@ -20,20 +21,20 @@ func BuildTplTree(input string, option Option) (*Tpl, error) {
 	for i := 0; i < len(paths); i++ {
 		path := paths[i]
 
-		if !strings.HasSuffix(path, TPL_EXT) {
-			continue
-		}
+		fmt.Println("-----path=", path)
 
 		baseName := filepath.Base(path)
 		name := strings.Replace(baseName, "."+TPL_EXT, "", 1)
 
-		tpl := &Tpl{name:name,option:option}
+		tpl := &Tpl{path: path, name: name, option: option}
 
 		err := tpl.readRaw()
 		if err != nil {
 			fmt.Println(err)
 			continue
 		}
+
+		tpl.checkExtends()
 //
 //		err = tpl.Generate()
 //		if err != nil {
@@ -60,7 +61,7 @@ func Generate(input string, out string, option Option) (err error) {
 	input_abs, _ := filepath.Abs(input)
 	out_abs, _ := filepath.Abs(out)
 
-	paths, err := getFiles(input_abs)
+	paths, err := getFiles(input_abs, TPL_EXT)
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,9 @@ func Generate(input string, out string, option Option) (err error) {
 }
 
 type Tpl struct {
+	path     string
 	name     string
+	level    int
 	parent   *Tpl
 	raw 	 []byte
 	result 	 string
@@ -138,7 +141,7 @@ func InitTpl(name string, option Option) (*Tpl, error) {
 	return tpl, nil
 }
 
-func (tpl Tpl) Generate() error {
+func (tpl *Tpl) Generate() error {
 	err := tpl.genToken()
 	if err != nil {
 		return err
@@ -167,7 +170,7 @@ func (tpl Tpl) Generate() error {
 	return nil
 }
 
-func (tpl Tpl) genToken() error {
+func (tpl *Tpl) genToken() error {
 	lex := &Lexer{Text: string(tpl.raw), Matches: TokenMatches}
 
 	tokens, err := lex.Scan()
@@ -180,7 +183,7 @@ func (tpl Tpl) genToken() error {
 	return nil
 }
 
-func (tpl Tpl) genAst() error {
+func (tpl *Tpl) genAst() error {
 	parser := &Parser{
 		ast: tpl.ast, tokens: tpl.tokens,
 		preTokens: []Token{}, initMode: UNK,
@@ -197,7 +200,7 @@ func (tpl Tpl) genAst() error {
 	return nil
 }
 
-func (tpl Tpl) compile() error {
+func (tpl *Tpl) compile() error {
 	//	dir := filepath.Base(filepath.Dir(input))
 	//	file := strings.Replace(filepath.Base(input), TPL_EXT, "", 1)
 	//	if options["NameNotChange"] == nil {
@@ -221,28 +224,42 @@ func (tpl Tpl) compile() error {
 	return nil
 }
 
-func (tpl Tpl) readRaw() error {
-	raw, err := ioutil.ReadFile(tpl.getPath())
+func (tpl *Tpl) readRaw() error {
+	raw, err := ioutil.ReadFile(tpl.path)
 	if err != nil {
+		fmt.Println(err)
 		return err
 	}
 	tpl.raw = raw
+
 	return nil
 }
 
-func (tpl Tpl) getPath() string {
-	return "" + tpl.name
+func (tpl *Tpl) checkExtends() {
+	if bytes.HasPrefix(tpl.raw, []byte("@extends")) {
+		lineEnd := -1
+		for i:=len("@extends");i<len(tpl.raw);i++ {
+			if tpl.raw[i] == '\n' {
+				lineEnd = i
+				break
+			}
+		}
+		line := tpl.raw[:lineEnd+1]
+		ss := strings.Split(string(line), " ")
+		if len(ss) == 2 {
+			parentName := ss[1]
+			fmt.Println("------parentName====", parentName)
+			tpl.raw = tpl.raw[lineEnd+1:]
+		}
+//		fmt.Println(string(tpl.raw))
+	}
 }
 
-func (tpl Tpl) getOutPath() string {
-	return "" + tpl.name
+func (tpl *Tpl) getOutPath() string {
+	return "./gen/" + tpl.name + ".go"
 }
 
-func (tpl Tpl) getName() string {
-	return "" + tpl.name
-}
-
-func (tpl Tpl) fmt() error {
+func (tpl *Tpl) fmt() error {
 	cmd := exec.Command("gofmt", "-w", tpl.getOutPath())
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -254,7 +271,7 @@ func (tpl Tpl) fmt() error {
 	return nil
 }
 
-func (tpl Tpl) output() error {
+func (tpl *Tpl) output() error {
 	err := ioutil.WriteFile(tpl.getOutPath(), []byte(tpl.result), 0644)
 	if err != nil {
 		return  err

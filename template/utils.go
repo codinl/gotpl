@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"html/template"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+	"io/ioutil"
+	"path/filepath"
 )
 
 func HTMLEscape(m interface{}) string {
@@ -42,32 +43,20 @@ func exists(path string) bool {
 	return false
 }
 
-func getFiles(dir string) ([]string, error) {
+func getFiles(dir string, fileExt string) ([]string, error) {
 	fileNames := []string{}
-
-	visit := func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			if !strings.HasSuffix(path, TPL_EXT) {
-				return nil
+	files, _ := ioutil.ReadDir(dir)
+	for _, fi := range files {
+		if !fi.IsDir() {
+			if strings.HasSuffix(fi.Name(), fileExt) {
+				abs, err := filepath.Abs(dir)
+//				fmt.Println(abs)
+				if err == nil {
+					fileNames = append(fileNames, abs+"/"+fi.Name())
+				}
 			}
-			base := filepath.Base(path)
-			if strings.HasPrefix(base, "__") {
-				return nil
-			}
-			fullpath, err := filepath.Abs(path)
-			if err != nil {
-				return nil
-			}
-			fileNames = append(fileNames, fullpath)
 		}
-		return nil
 	}
-
-	err := filepath.Walk(dir, visit)
-	if err != nil {
-		return nil, err
-	}
-
 	return fileNames, nil
 }
 
