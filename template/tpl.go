@@ -5,122 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
+	"os/exec"
 )
 
-func Generate(input string, output string, option Option) error {
-	sections, err := genSection(input)
-	if err != nil {
-		return err
-	}
-
-	tplMap := map[string]*Tpl{}
-
-	paths, err := getFiles(input, TPL_EXT)
-	if err != nil {
-		return err
-	}
-
-	for i := 0; i < len(paths); i++ {
-		path := paths[i]
-
-		baseName := filepath.Base(path)
-		name := strings.TrimSpace(strings.Replace(baseName, TPL_EXT, "", 1))
-
-		tpl := &Tpl{path: path, name: name, ast: &Ast{}, tokens: []Token{}, blocks: map[string]*Ast{}, option: option}
-
-		err := tpl.readRaw()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-
-		tpl.checkSection(sections)
-
-		err = tpl.checkExtends()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-
-		tplMap[tpl.name] = tpl
-	}
-
-	for key, tpl := range tplMap {
-		if !tpl.isRoot {
-			if p, ok := tplMap[tpl.parentName]; ok {
-				tplMap[key].parent = p
-			} else {
-				fmt.Println(tpl.parentName, "--parent not exists")
-				delete(tplMap, key)
-			}
-		}
-	}
-
-	for _, tpl := range tplMap {
-		err = tpl.generate()
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-	}
-
-	cmd := exec.Command("gofmt", "-w", output)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Println("gofmt: ", err)
-		return err
-	}
-
-	return nil
-}
-
-func genSection(input string) (map[string]*Section, error) {
-	dir := input + SEC_DIR
-	if !exists(dir) {
-		return nil, nil
-	}
-
-	paths, err := getFiles(dir, TPL_EXT)
-	if err != nil {
-		return nil, err
-	}
-
-	sections := map[string]*Section{}
-
-	for i := 0; i < len(paths); i++ {
-		path := paths[i]
-
-		raw, err := ioutil.ReadFile(path)
-		if err != nil {
-			fmt.Println(err)
-			return nil, err
-		}
-
-		ss := bytes.Split(raw, []byte("@section"))
-		for _, s := range ss {
-			idx := bytes.Index(s, []byte("("))
-			idx_2 := bytes.Index(s, []byte("{"))
-			idxEnd := bytes.LastIndex(s, []byte("}"))
-			if idx > 0 && idx_2 > 0 && idxEnd > 0 {
-				name := string(bytes.TrimSpace(s[:idx]))
-				text := bytes.TrimSpace(s[idx_2+1:idxEnd])
-				section := &Section{name:name, text:text}
-				sections[name] = section
-			}
-		}
-	}
-
-	return sections, nil
-}
-
 type Tpl struct {
-	path   string
-	name   string
-	isRoot bool
+	path       string
+	name       string
+	isRoot     bool
 	parent     *Tpl
 	parentName string
 	raw        []byte
@@ -129,8 +21,8 @@ type Tpl struct {
 	ast        *Ast
 	blocks     map[string]*Ast
 	sections   map[string]*Ast
-	params    []string
-	imports   map[string]bool
+	params     []string
+	imports    map[string]bool
 	generated  bool
 	option     Option
 }
@@ -162,23 +54,23 @@ func (tpl *Tpl) gen() error {
 		return err
 	}
 
-//	fmt.Println(tpl.name, "------------------- TOKEN START -----------------")
-//	for _, elem := range tpl.tokens {
-//		elem.debug()
-//	}
-//	fmt.Println(tpl.name, "--------------------- TOKEN END -----------------\n")
+	//	fmt.Println(tpl.name, "------------------- TOKEN START -----------------")
+	//	for _, elem := range tpl.tokens {
+	//		elem.debug()
+	//	}
+	//	fmt.Println(tpl.name, "--------------------- TOKEN END -----------------\n")
 
 	err = tpl.genAst()
 	if err != nil {
 		return err
 	}
 
-//	fmt.Println(tpl.name, "--------------------- AST START -----------------")
-//	tpl.ast.debug(0, 20)
-//	fmt.Println(tpl.name, "--------------------- AST END -----------------\n")
-//	if tpl.ast.Mode != PRG {
-//		panic("TYPE")
-//	}
+	//	fmt.Println(tpl.name, "--------------------- AST START -----------------")
+	//	tpl.ast.debug(0, 20)
+	//	fmt.Println(tpl.name, "--------------------- AST END -----------------\n")
+	//	if tpl.ast.Mode != PRG {
+	//		panic("TYPE")
+	//	}
 
 	err = tpl.genResult()
 	if err != nil {
@@ -243,9 +135,9 @@ func (tpl *Tpl) genResult() error {
 	cp := &Compiler{
 		tpl: tpl,
 		ast: tpl.ast, buf: "",
-		params: []string{},
+		params:  []string{},
 		imports: map[string]bool{},
-		parts: []Part{},
+		parts:   []Part{},
 		//		options: options,
 		//		dir:     dir,
 		fileName: tpl.name,
@@ -330,17 +222,54 @@ func (tpl *Tpl) getOutPath() string {
 	return "./gen/" + tpl.name + ".go"
 }
 
-//func (tpl *Tpl) fmt() error {
-//	cmd := exec.Command("gofmt", "-w", tpl.getOutPath())
-//	cmd.Stdout = os.Stdout
-//	cmd.Stderr = os.Stderr
-//	if err := cmd.Run(); err != nil {
-//		fmt.Println("gofmt: ", err)
-//		return err
-//	}
-//
-//	return nil
-//}
+func genSection(input string) (map[string]*Section, error) {
+	dir := input + SEC_DIR
+	if !exists(dir) {
+		return nil, nil
+	}
+
+	paths, err := getFiles(dir, TPL_EXT)
+	if err != nil {
+		return nil, err
+	}
+
+	sections := map[string]*Section{}
+
+	for i := 0; i < len(paths); i++ {
+		path := paths[i]
+
+		raw, err := ioutil.ReadFile(path)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		ss := bytes.Split(raw, []byte("@section"))
+		for _, s := range ss {
+			idx := bytes.Index(s, []byte("("))
+			idx_2 := bytes.Index(s, []byte("{"))
+			idxEnd := bytes.LastIndex(s, []byte("}"))
+			if idx > 0 && idx_2 > 0 && idxEnd > 0 {
+				name := string(bytes.TrimSpace(s[:idx]))
+				text := bytes.TrimSpace(s[idx_2+1 : idxEnd])
+				section := &Section{name: name, text: text}
+				sections[name] = section
+			}
+		}
+	}
+
+	return sections, nil
+}
+
+func fmtCode(output string) {
+	cmd := exec.Command("gofmt", "-w", output)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Println("gofmt: ", err)
+		return err
+	}
+}
 
 func (tpl *Tpl) output() error {
 	outDir := "./gen/"
@@ -385,4 +314,3 @@ func updateAst(ast *Ast, blocks map[string]*Ast) {
 		}
 	}
 }
-

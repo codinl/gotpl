@@ -4,8 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-
-	"github.com/codinl/gotpl/gotpl"
+	"github.com/codinl/gotpl/template"
 )
 
 func Usage() {
@@ -21,23 +20,25 @@ func main() {
 
 	flag.Parse()
 
-	options := gotpl.Option{}
+	option := template.Option{}
 
 	if *isDebug {
-		options["Debug"] = *isDebug
+		option["Debug"] = *isDebug
 	}
 	if *isWatch {
-		options["Watch"] = *isWatch
+		option["Watch"] = *isWatch
 	}
 
-	options["Debug"] = false
-	options["Watch"] = false
+	option["Debug"] = true
+//	options["Watch"] = true
 
-	if len(flag.Args()) != 2 {
-		flag.Usage()
-	}
+//	if len(flag.Args()) != 2 {
+//		flag.Usage()
+//	}
 
-	input, output := flag.Arg(0), flag.Arg(1)
+//	input, output := flag.Arg(0), flag.Arg(1)
+//	input, output := "./tpl/", "./gennew/"
+	input, output := "./tpl/", "./gen/"
 	stat, err := os.Stat(input)
 	if err != nil {
 		fmt.Println(err)
@@ -45,7 +46,7 @@ func main() {
 	}
 
 	if stat.IsDir() {
-		err := gotpl.Generate(input, output, options)
+		err := template.Generate(input, output, option)
 		if err != nil {
 			fmt.Println(err)
 		}
