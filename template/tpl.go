@@ -16,10 +16,6 @@ func Generate(input string, output string, option Option) error {
 		return err
 	}
 
-//	for _, sec := range sections {
-//		fmt.Println("=-=-=-=-=-=-=-=name=",string(sec.name), ",,,,text=", string(sec.text))
-//	}
-
 	tplMap := map[string]*Tpl{}
 
 	paths, err := getFiles(input, TPL_EXT)
@@ -133,6 +129,8 @@ type Tpl struct {
 	ast        *Ast
 	blocks     map[string]*Ast
 	sections   map[string]*Ast
+	params    []string
+	imports   map[string]bool
 	generated  bool
 	option     Option
 }
@@ -164,11 +162,11 @@ func (tpl *Tpl) gen() error {
 		return err
 	}
 
-	//	fmt.Println(tpl.name, "------------------- TOKEN START -----------------")
-	//	for _, elem := range tpl.tokens {
-	//		elem.debug()
-	//	}
-	//	fmt.Println(tpl.name, "--------------------- TOKEN END -----------------\n")
+//	fmt.Println(tpl.name, "------------------- TOKEN START -----------------")
+//	for _, elem := range tpl.tokens {
+//		elem.debug()
+//	}
+//	fmt.Println(tpl.name, "--------------------- TOKEN END -----------------\n")
 
 	err = tpl.genAst()
 	if err != nil {
@@ -176,11 +174,11 @@ func (tpl *Tpl) gen() error {
 	}
 
 //	fmt.Println(tpl.name, "--------------------- AST START -----------------")
-	//	tpl.ast.debug(0, 20)
-	//	fmt.Println(tpl.name, "--------------------- AST END -----------------\n")
-	//	if tpl.ast.Mode != PRG {
-	//		panic("TYPE")
-	//	}
+//	tpl.ast.debug(0, 20)
+//	fmt.Println(tpl.name, "--------------------- AST END -----------------\n")
+//	if tpl.ast.Mode != PRG {
+//		panic("TYPE")
+//	}
 
 	err = tpl.genResult()
 	if err != nil {
@@ -229,7 +227,10 @@ func (tpl *Tpl) genAst() error {
 	}
 
 	if !tpl.isRoot && tpl.parent != nil {
+		firstNode := tpl.ast.Children[0]
 		tpl.ast = tpl.parent.ast
+		tpl.ast.Children[0] = firstNode
+
 		if tpl.blocks != nil && len(tpl.blocks) > 0 {
 			updateAst(tpl.ast, tpl.blocks)
 		}
@@ -242,8 +243,9 @@ func (tpl *Tpl) genResult() error {
 	cp := &Compiler{
 		tpl: tpl,
 		ast: tpl.ast, buf: "",
-		params: []string{}, parts: []Part{},
+		params: []string{},
 		imports: map[string]bool{},
+		parts: []Part{},
 		//		options: options,
 		//		dir:     dir,
 		fileName: tpl.name,
@@ -263,7 +265,11 @@ func (tpl *Tpl) readRaw() error {
 		fmt.Println(err)
 		return err
 	}
+
 	tpl.raw = raw
+
+	tpl.fmtRaw()
+
 	return nil
 }
 
@@ -275,7 +281,6 @@ func (tpl *Tpl) checkSection(sections map[string]*Section) error {
 		idx_2 := bytes.Index(left, []byte(")"))
 		if idx_1 > 0 && idx_2 > 0 {
 			name := string(bytes.TrimSpace(left[:idx_1]))
-			fmt.Println("----------name===", name)
 			tpl.raw = tpl.raw[:idx]
 			left_1 := left[idx_2+1:]
 			if sections != nil {
@@ -296,6 +301,7 @@ func (tpl *Tpl) checkSection(sections map[string]*Section) error {
 func (tpl *Tpl) checkExtends() error {
 	tpl.parentName = ""
 	tpl.isRoot = true
+
 	if bytes.HasPrefix(tpl.raw, []byte("@extends")) {
 		lineEnd := -1
 		for i := len("@extends"); i < len(tpl.raw); i++ {
@@ -306,16 +312,19 @@ func (tpl *Tpl) checkExtends() error {
 		}
 		line := tpl.raw[:lineEnd+1]
 		ss := strings.Split(string(line), " ")
-		if len(ss) == 2 {
+		if len(ss) == 2 && lineEnd > 0 {
 			parentName := strings.TrimSpace(ss[1])
 			tpl.parentName = parentName
 			tpl.isRoot = false
+
 			tpl.raw = tpl.raw[lineEnd+1:]
+
+			tpl.fmtRaw()
 		}
 	}
+
 	return nil
 }
-
 
 func (tpl *Tpl) getOutPath() string {
 	return "./gen/" + tpl.name + ".go"
@@ -350,6 +359,16 @@ func (tpl *Tpl) output() error {
 	return nil
 }
 
+func (tpl *Tpl) fmtRaw() {
+	if tpl.raw != nil {
+		tpl.raw = bytes.TrimSpace(tpl.raw)
+		if !bytes.HasPrefix(tpl.raw, []byte("@{")) && !bytes.HasPrefix(tpl.raw, []byte("@extends")) {
+			tpl.raw = append([]byte("@{\n}\n"), tpl.raw...)
+			fmt.Println("..............."+tpl.name, string(tpl.raw))
+		}
+	}
+}
+
 func updateAst(ast *Ast, blocks map[string]*Ast) {
 	if ast.Children == nil || len(ast.Children) == 0 || blocks == nil || len(blocks) == 0 {
 		return
@@ -366,3 +385,4 @@ func updateAst(ast *Ast, blocks map[string]*Ast) {
 		}
 	}
 }
+

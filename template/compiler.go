@@ -44,8 +44,8 @@ type Compiler struct {
 	ast       *Ast
 	buf       string //the final result
 	firstNode bool
-	params    []string
 	parts     []Part
+	params    []string
 	imports   map[string]bool
 	options   Option
 	dir       string
@@ -214,6 +214,33 @@ func (cp *Compiler) visitFirstNode(node *Ast) {
 			cp.params = append(cp.params, l[4:])
 		}
 	}
+
+	// extends parent
+	if !cp.tpl.isRoot && cp.tpl.parent != nil {
+		for k, v := range cp.tpl.parent.imports {
+			if _, ok := cp.imports[k]; !ok {
+				cp.imports[k] = v
+			}
+		}
+
+		params := cp.tpl.parent.params
+		for _, v := range cp.params {
+			exists := false
+			for _, vv := range cp.tpl.parent.params {
+				if vv == v {
+					exists = true
+					break
+				}
+			}
+			if !exists {
+				params = append(params, v)
+			}
+		}
+		cp.params = params
+	}
+
+	cp.tpl.imports = cp.imports
+	cp.tpl.params = cp.params
 }
 
 func (cp *Compiler) addPart(part Part) {
@@ -250,77 +277,77 @@ func (cp *Compiler) genPart() {
 	cp.buf = res
 }
 
-func (cp *Compiler) processBlock() {
-	lines := strings.SplitN(cp.buf, "\n", -1)
-	out := ""
-	scope := 0
-	for _, l := range lines {
-		l = strings.TrimSpace(l)
-		if strings.HasPrefix(l, "block") && strings.HasSuffix(l, "{") {
-			scope = 1
-			out += "\n"
-		} else if scope > 0 {
-			if strings.HasSuffix(l, "{") {
-				scope++
-			} else if strings.HasSuffix(l, "}") {
-				scope--
-			}
-			if scope == 0 {
-				scope = 0
-			} else {
-				out += l + "\n"
-			}
-		} else {
-			out += l + "\n"
-		}
-	}
+//func (cp *Compiler) processBlock() {
+//	lines := strings.SplitN(cp.buf, "\n", -1)
+//	out := ""
+//	scope := 0
+//	for _, l := range lines {
+//		l = strings.TrimSpace(l)
+//		if strings.HasPrefix(l, "block") && strings.HasSuffix(l, "{") {
+//			scope = 1
+//			out += "\n"
+//		} else if scope > 0 {
+//			if strings.HasSuffix(l, "{") {
+//				scope++
+//			} else if strings.HasSuffix(l, "}") {
+//				scope--
+//			}
+//			if scope == 0 {
+//				scope = 0
+//			} else {
+//				out += l + "\n"
+//			}
+//		} else {
+//			out += l + "\n"
+//		}
+//	}
+//
+//	cp.buf = out
+//}
 
-	cp.buf = out
-}
-
-func (cp *Compiler) processSection() {
-	cp.imports[Namespace] = false
-	cp.imports[`"bytes"`] = false
-	head := "package tpl\n\n import (\n"
-	for k, v := range cp.imports {
-		if v {
-			head += k + "\n"
-		}
-	}
-	head += ")\n"
-
-	lines := strings.SplitN(cp.buf, "\n", -1)
-	out := ""
-	scope := 0
-	secOut := ""
-	for _, l := range lines {
-		l = strings.TrimSpace(l)
-		if strings.HasPrefix(l, "section") && strings.HasSuffix(l, "{") {
-			name := l
-			name = strings.TrimSpace(name[7 : len(name)-1])
-			out += "\n func " + Capitalize(name) + " string {\n"
-			secOut = "return `\n"
-			scope = 1
-		} else if scope > 0 {
-			if strings.HasSuffix(l, "{") {
-				scope++
-			} else if strings.HasSuffix(l, "}") {
-				scope--
-			}
-			if scope == 0 {
-				secOut += "`\n}\n"
-				out += secOut
-				secOut = ""
-			} else {
-				secOut += l + "\n"
-			}
-		} else {
-			secOut += l + "\n"
-		}
-	}
-
-	cp.buf = head + out
-}
+//func (cp *Compiler) processSection() {
+//	cp.imports[Namespace] = false
+//	cp.imports[`"bytes"`] = false
+//	head := "package tpl\n\n import (\n"
+//	for k, v := range cp.imports {
+//		if v {
+//			head += k + "\n"
+//		}
+//	}
+//	head += ")\n"
+//
+//	lines := strings.SplitN(cp.buf, "\n", -1)
+//	out := ""
+//	scope := 0
+//	secOut := ""
+//	for _, l := range lines {
+//		l = strings.TrimSpace(l)
+//		if strings.HasPrefix(l, "section") && strings.HasSuffix(l, "{") {
+//			name := l
+//			name = strings.TrimSpace(name[7 : len(name)-1])
+//			out += "\n func " + Capitalize(name) + " string {\n"
+//			secOut = "return `\n"
+//			scope = 1
+//		} else if scope > 0 {
+//			if strings.HasSuffix(l, "{") {
+//				scope++
+//			} else if strings.HasSuffix(l, "}") {
+//				scope--
+//			}
+//			if scope == 0 {
+//				secOut += "`\n}\n"
+//				out += secOut
+//				secOut = ""
+//			} else {
+//				secOut += l + "\n"
+//			}
+//		} else {
+//			secOut += l + "\n"
+//		}
+//	}
+//
+//	cp.buf = head + out
+//}
 
 func (cp *Compiler) visit() {
 	// visitAst(cp.ast) -> cp.parts
@@ -338,6 +365,7 @@ func (cp *Compiler) visit() {
 			head += k + "\n"
 		}
 	}
+
 	head += "\n)\n func " + funcName + "("
 	for idx, p := range cp.params {
 		head += p
@@ -349,7 +377,7 @@ func (cp *Compiler) visit() {
 
 	cp.buf = head + cp.buf
 
-	cp.processBlock()
+//	cp.processBlock()
 
 	cp.buf += "return _buffer.String()\n}"
 }
