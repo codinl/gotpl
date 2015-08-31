@@ -2,10 +2,7 @@ package template
 
 const (
 	GO_EXT  = ".go"
-	TPL_EXT = ".tpl"
-	TMP_EXT = ".t"
-	TMP_DIR = "tmp/"
-	GEN_DIR = "testgen/"
+	TPL_EXT = ".html"
 	SEC_DIR = "sections/"
 )
 

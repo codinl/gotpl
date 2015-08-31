@@ -139,8 +139,6 @@ func (tpl *Tpl) genResult() error {
 		params:  []string{},
 		imports: map[string]bool{},
 		parts:   []Part{},
-		//		options: options,
-		//		dir:     dir,
 		fileName: tpl.name,
 	}
 
@@ -290,7 +288,6 @@ func (tpl *Tpl) fmtRaw() {
 		tpl.raw = bytes.TrimSpace(tpl.raw)
 		if !bytes.HasPrefix(tpl.raw, []byte("@{")) && !bytes.HasPrefix(tpl.raw, []byte("@extends")) {
 			tpl.raw = append([]byte("@{\n}\n"), tpl.raw...)
-			fmt.Println("..............."+tpl.name, string(tpl.raw))
 		}
 	}
 }

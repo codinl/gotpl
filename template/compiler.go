@@ -277,78 +277,6 @@ func (cp *Compiler) genPart() {
 	cp.buf = res
 }
 
-//func (cp *Compiler) processBlock() {
-//	lines := strings.SplitN(cp.buf, "\n", -1)
-//	out := ""
-//	scope := 0
-//	for _, l := range lines {
-//		l = strings.TrimSpace(l)
-//		if strings.HasPrefix(l, "block") && strings.HasSuffix(l, "{") {
-//			scope = 1
-//			out += "\n"
-//		} else if scope > 0 {
-//			if strings.HasSuffix(l, "{") {
-//				scope++
-//			} else if strings.HasSuffix(l, "}") {
-//				scope--
-//			}
-//			if scope == 0 {
-//				scope = 0
-//			} else {
-//				out += l + "\n"
-//			}
-//		} else {
-//			out += l + "\n"
-//		}
-//	}
-//
-//	cp.buf = out
-//}
-
-//func (cp *Compiler) processSection() {
-//	cp.imports[Namespace] = false
-//	cp.imports[`"bytes"`] = false
-//	head := "package tpl\n\n import (\n"
-//	for k, v := range cp.imports {
-//		if v {
-//			head += k + "\n"
-//		}
-//	}
-//	head += ")\n"
-//
-//	lines := strings.SplitN(cp.buf, "\n", -1)
-//	out := ""
-//	scope := 0
-//	secOut := ""
-//	for _, l := range lines {
-//		l = strings.TrimSpace(l)
-//		if strings.HasPrefix(l, "section") && strings.HasSuffix(l, "{") {
-//			name := l
-//			name = strings.TrimSpace(name[7 : len(name)-1])
-//			out += "\n func " + Capitalize(name) + " string {\n"
-//			secOut = "return `\n"
-//			scope = 1
-//		} else if scope > 0 {
-//			if strings.HasSuffix(l, "{") {
-//				scope++
-//			} else if strings.HasSuffix(l, "}") {
-//				scope--
-//			}
-//			if scope == 0 {
-//				secOut += "`\n}\n"
-//				out += secOut
-//				secOut = ""
-//			} else {
-//				secOut += l + "\n"
-//			}
-//		} else {
-//			secOut += l + "\n"
-//		}
-//	}
-//
-//	cp.buf = head + out
-//}
-
 func (cp *Compiler) visit() {
 	// visitAst(cp.ast) -> cp.parts
 	cp.visitAst(cp.ast)
@@ -376,8 +304,6 @@ func (cp *Compiler) visit() {
 	head += ") string {\n var _buffer bytes.Buffer\n"
 
 	cp.buf = head + cp.buf
-
-	//	cp.processBlock()
 
 	cp.buf += "return _buffer.String()\n}"
 }

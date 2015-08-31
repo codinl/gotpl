@@ -61,7 +61,10 @@ func Generate(input string, output string, option Option) error {
 		}
 	}
 
-	os.RemoveAll(output)
+	err = os.RemoveAll(output)
+	if err != nil {
+		fmt.Println("------------", err)
+	}
 
 	for _, tpl := range tplMap {
 		err = tpl.generate()
