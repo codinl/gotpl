@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"os"
 )
 
 func Generate(input string, output string, option Option) error {
@@ -25,7 +26,12 @@ func Generate(input string, output string, option Option) error {
 		baseName := filepath.Base(path)
 		name := strings.TrimSpace(strings.Replace(baseName, TPL_EXT, "", 1))
 
-		tpl := &Tpl{path: path, name: name, ast: &Ast{}, tokens: []Token{}, blocks: map[string]*Ast{}, option: option}
+		tpl := &Tpl{
+			path: path, name: name,
+			ast: &Ast{}, tokens: []Token{},
+			blocks: map[string]*Ast{}, outDir:output,
+			option: option,
+		}
 
 		err := tpl.readRaw()
 		if err != nil {
@@ -55,6 +61,8 @@ func Generate(input string, output string, option Option) error {
 		}
 	}
 
+	os.RemoveAll(output)
+
 	for _, tpl := range tplMap {
 		err = tpl.generate()
 		if err != nil {
@@ -63,7 +71,10 @@ func Generate(input string, output string, option Option) error {
 		}
 	}
 
-	fmtCode(output)
+	err = fmtCode(output)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

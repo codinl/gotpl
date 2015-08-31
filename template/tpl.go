@@ -25,6 +25,7 @@ type Tpl struct {
 	imports    map[string]bool
 	generated  bool
 	option     Option
+	outDir    string
 }
 
 func (tpl *Tpl) generate() error {
@@ -218,10 +219,6 @@ func (tpl *Tpl) checkExtends() error {
 	return nil
 }
 
-func (tpl *Tpl) getOutPath() string {
-	return "./gen/" + tpl.name + ".go"
-}
-
 func genSection(input string) (map[string]*Section, error) {
 	dir := input + SEC_DIR
 	if !exists(dir) {
@@ -261,7 +258,7 @@ func genSection(input string) (map[string]*Section, error) {
 	return sections, nil
 }
 
-func fmtCode(output string) {
+func fmtCode(output string) error {
 	cmd := exec.Command("gofmt", "-w", output)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -269,18 +266,18 @@ func fmtCode(output string) {
 		fmt.Println("gofmt: ", err)
 		return err
 	}
+	return nil
 }
 
 func (tpl *Tpl) output() error {
-	outDir := "./gen/"
-	if !exists(outDir) {
-		err := os.MkdirAll(outDir, 0755)
+	if !exists(tpl.outDir) {
+		err := os.MkdirAll(tpl.outDir, 0755)
 		if err != nil {
 			return err
 		}
 	}
 
-	outpath := outDir + tpl.name + ".go"
+	outpath := tpl.outDir + tpl.name + ".go"
 	err := ioutil.WriteFile(outpath, []byte(tpl.result), 0644)
 	if err != nil {
 		return err

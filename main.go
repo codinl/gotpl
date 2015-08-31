@@ -30,15 +30,14 @@ func main() {
 	}
 
 	option["Debug"] = true
-//	options["Watch"] = true
+	option["Watch"] = true
 
-//	if len(flag.Args()) != 2 {
-//		flag.Usage()
-//	}
+	if len(flag.Args()) != 2 {
+		flag.Usage()
+	}
 
-//	input, output := flag.Arg(0), flag.Arg(1)
-//	input, output := "./tpl/", "./gennew/"
-	input, output := "./tpl/", "./gen/"
+	input, output := flag.Arg(0), flag.Arg(1)
+//	input, output := "./tpl/", "./gen/"
 	stat, err := os.Stat(input)
 	if err != nil {
 		fmt.Println(err)
