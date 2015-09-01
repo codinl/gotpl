@@ -1,4 +1,6 @@
-package template
+package gotpl
+
+var Namespace = `"github.com/codinl/gotpl/template"`
 
 const (
 	GO_EXT  = ".go"

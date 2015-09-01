@@ -1,4 +1,4 @@
-package template
+package gotpl
 
 import (
 	"fmt"
@@ -63,7 +63,8 @@ func Generate(input string, output string, option Option) error {
 
 	err = os.RemoveAll(output)
 	if err != nil {
-		fmt.Println("------------", err)
+		fmt.Println(err)
+		return err
 	}
 
 	for _, tpl := range tplMap {

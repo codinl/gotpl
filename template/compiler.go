@@ -1,4 +1,4 @@
-package template
+package gotpl
 
 import (
 	"fmt"
@@ -8,8 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 )
-
-var Namespace = `"github.com/codinl/gotpl/gotpl"`
 
 const (
 	PART_MKP = iota

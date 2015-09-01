@@ -1,4 +1,4 @@
-package template
+package gotpl
 
 import (
 	"fmt"

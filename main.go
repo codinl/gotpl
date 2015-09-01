@@ -20,7 +20,7 @@ func main() {
 
 	flag.Parse()
 
-	option := template.Option{}
+	option := gotpl.Option{}
 
 	if *isDebug {
 		option["Debug"] = *isDebug
@@ -45,7 +45,7 @@ func main() {
 	}
 
 	if stat.IsDir() {
-		err := template.Generate(input, output, option)
+		err := gotpl.Generate(input, output, option)
 		if err != nil {
 			fmt.Println(err)
 		}
