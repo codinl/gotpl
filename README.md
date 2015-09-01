@@ -58,9 +58,11 @@ base.tpl :
 </html>
 ```
 
-test_extends_base.tpl :
+test.tpl :
 
 ```
+@extends base
+
 @block bb {
      extends bbb
 }
