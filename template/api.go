@@ -55,8 +55,6 @@ func Generate(input string, output string, option Option) error {
 			return err
 		}
 
-		logger.Debug(tpl.name, " after checkExtends tpl.raw", string(tpl.raw))
-
 		tplMap[tpl.name] = tpl
 	}
 
