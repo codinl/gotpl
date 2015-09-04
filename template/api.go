@@ -5,9 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"os"
+	"github.com/codinl/go-logger"
 )
 
 func Generate(input string, output string, option Option) error {
+	err := initLogger()
+	if err != nil {
+		panic("initLogger fail")
+	}
+
 	sections, err := genSection(input)
 	if err != nil {
 		return err
@@ -35,7 +41,7 @@ func Generate(input string, output string, option Option) error {
 
 		err := tpl.readRaw()
 		if err != nil {
-			fmt.Println(err)
+			logger.Info(err)
 			return err
 		}
 
@@ -43,7 +49,7 @@ func Generate(input string, output string, option Option) error {
 
 		err = tpl.checkExtends()
 		if err != nil {
-			fmt.Println(err)
+			logger.Info(err)
 			return err
 		}
 
@@ -55,7 +61,7 @@ func Generate(input string, output string, option Option) error {
 			if p, ok := tplMap[tpl.parentName]; ok {
 				tplMap[key].parent = p
 			} else {
-				fmt.Println(tpl.parentName, "--parent not exists")
+				logger.Info(tpl.parentName, "--parent not exists")
 				delete(tplMap, key)
 			}
 		}
@@ -63,14 +69,14 @@ func Generate(input string, output string, option Option) error {
 
 	err = os.RemoveAll(output)
 	if err != nil {
-		fmt.Println(err)
+		logger.Info(err)
 		return err
 	}
 
 	for _, tpl := range tplMap {
 		err = tpl.generate()
 		if err != nil {
-			fmt.Println(err)
+			logger.Info(err)
 			return err
 		}
 	}
@@ -83,3 +89,12 @@ func Generate(input string, output string, option Option) error {
 	return nil
 }
 
+func initLogger() error {
+	err := logger.Init("./log", "gotpl.log", logger.DEBUG)
+	if err != nil {
+		fmt.Println("logger init error err=", err)
+		return err
+	}
+	logger.SetConsole(true)
+	return nil
+}

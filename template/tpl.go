@@ -2,11 +2,11 @@ package gotpl
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strings"
 	"os/exec"
+"github.com/codinl/go-logger"
 )
 
 type Tpl struct {
@@ -55,20 +55,20 @@ func (tpl *Tpl) gen() error {
 		return err
 	}
 
-	//	fmt.Println(tpl.name, "------------------- TOKEN START -----------------")
+	//	logger.Info(tpl.name, "------------------- TOKEN START -----------------")
 	//	for _, elem := range tpl.tokens {
 	//		elem.debug()
 	//	}
-	//	fmt.Println(tpl.name, "--------------------- TOKEN END -----------------\n")
+	//	logger.Info(tpl.name, "--------------------- TOKEN END -----------------\n")
 
 	err = tpl.genAst()
 	if err != nil {
 		return err
 	}
 
-	//	fmt.Println(tpl.name, "--------------------- AST START -----------------")
+	//	logger.Info(tpl.name, "--------------------- AST START -----------------")
 	//	tpl.ast.debug(0, 20)
-	//	fmt.Println(tpl.name, "--------------------- AST END -----------------\n")
+	//	logger.Info(tpl.name, "--------------------- AST END -----------------\n")
 	//	if tpl.ast.Mode != PRG {
 	//		panic("TYPE")
 	//	}
@@ -115,7 +115,7 @@ func (tpl *Tpl) genAst() error {
 	// Run() -> ast
 	err := parser.Run()
 	if err != nil {
-		fmt.Println(err)
+		logger.Info(err)
 		return err
 	}
 
@@ -153,7 +153,7 @@ func (tpl *Tpl) genResult() error {
 func (tpl *Tpl) readRaw() error {
 	raw, err := ioutil.ReadFile(tpl.path)
 	if err != nil {
-		fmt.Println(err)
+		logger.Info(err)
 		return err
 	}
 
@@ -235,7 +235,7 @@ func genSection(input string) (map[string]*Section, error) {
 
 		raw, err := ioutil.ReadFile(path)
 		if err != nil {
-			fmt.Println(err)
+			logger.Info(err)
 			return nil, err
 		}
 
@@ -261,7 +261,7 @@ func fmtCode(output string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Println("gofmt: ", err)
+		logger.Info("gofmt: ", err)
 		return err
 	}
 	return nil

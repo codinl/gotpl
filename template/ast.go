@@ -3,6 +3,7 @@ package gotpl
 import (
 	"fmt"
 	"regexp"
+	"github.com/codinl/go-logger"
 )
 
 //------------------------------ Ast ------------------------------//
@@ -154,7 +155,7 @@ func (ast *Ast) debug(depth int, max int) {
 		fmt.Printf("%c", '-')
 	}
 
-	fmt.Println("]]")
+	logger.Info("]]")
 }
 
 func regMatch(reg string, text string) (string, error) {

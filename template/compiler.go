@@ -6,6 +6,7 @@ import (
 	"go/token"
 	"os"
 	"strings"
+"github.com/codinl/go-logger"
 )
 
 const (
@@ -176,7 +177,7 @@ func (cp *Compiler) visitFirstNode(node *Ast) {
 	fileSet := token.NewFileSet()
 	f, err := parser.ParseFile(fileSet, "", "package main\n"+first, parser.ImportsOnly)
 	if err != nil {
-		fmt.Println(err)
+		logger.Info(err)
 		os.Exit(1)
 	} else {
 		for _, s := range f.Imports {
