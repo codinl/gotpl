@@ -2,8 +2,8 @@ package gotpl
 
 import (
 	"fmt"
-	"regexp"
 	"github.com/codinl/go-logger"
+	"regexp"
 )
 
 //------------------------------ Ast ------------------------------//

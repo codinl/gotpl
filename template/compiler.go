@@ -2,11 +2,11 @@ package gotpl
 
 import (
 	"fmt"
+	"github.com/codinl/go-logger"
 	"go/parser"
 	"go/token"
 	"os"
 	"strings"
-"github.com/codinl/go-logger"
 )
 
 const (
@@ -177,7 +177,7 @@ func (cp *Compiler) visitFirstNode(node *Ast) {
 	fileSet := token.NewFileSet()
 	f, err := parser.ParseFile(fileSet, "", "package main\n"+first, parser.ImportsOnly)
 	if err != nil {
-		logger.Info(err)
+		logger.Error(err)
 		os.Exit(1)
 	} else {
 		for _, s := range f.Imports {

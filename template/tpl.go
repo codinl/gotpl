@@ -2,11 +2,11 @@ package gotpl
 
 import (
 	"bytes"
+	"github.com/codinl/go-logger"
 	"io/ioutil"
 	"os"
-	"strings"
 	"os/exec"
-"github.com/codinl/go-logger"
+	"strings"
 )
 
 type Tpl struct {
@@ -25,7 +25,7 @@ type Tpl struct {
 	imports    map[string]bool
 	generated  bool
 	option     Option
-	outDir    string
+	outDir     string
 }
 
 func (tpl *Tpl) generate() error {
@@ -55,20 +55,20 @@ func (tpl *Tpl) gen() error {
 		return err
 	}
 
-	//	logger.Info(tpl.name, "------------------- TOKEN START -----------------")
+	//	logger.Error(tpl.name, "------------------- TOKEN START -----------------")
 	//	for _, elem := range tpl.tokens {
 	//		elem.debug()
 	//	}
-	//	logger.Info(tpl.name, "--------------------- TOKEN END -----------------\n")
+	//	logger.Error(tpl.name, "--------------------- TOKEN END -----------------\n")
 
 	err = tpl.genAst()
 	if err != nil {
 		return err
 	}
 
-	//	logger.Info(tpl.name, "--------------------- AST START -----------------")
+	//	logger.Error(tpl.name, "--------------------- AST START -----------------")
 	//	tpl.ast.debug(0, 20)
-	//	logger.Info(tpl.name, "--------------------- AST END -----------------\n")
+	//	logger.Error(tpl.name, "--------------------- AST END -----------------\n")
 	//	if tpl.ast.Mode != PRG {
 	//		panic("TYPE")
 	//	}
@@ -115,7 +115,7 @@ func (tpl *Tpl) genAst() error {
 	// Run() -> ast
 	err := parser.Run()
 	if err != nil {
-		logger.Info(err)
+		logger.Error(err)
 		return err
 	}
 
@@ -136,9 +136,9 @@ func (tpl *Tpl) genResult() error {
 	cp := &Compiler{
 		tpl: tpl,
 		ast: tpl.ast, buf: "",
-		params:  []string{},
-		imports: map[string]bool{},
-		parts:   []Part{},
+		params:   []string{},
+		imports:  map[string]bool{},
+		parts:    []Part{},
 		fileName: tpl.name,
 	}
 
@@ -153,7 +153,7 @@ func (tpl *Tpl) genResult() error {
 func (tpl *Tpl) readRaw() error {
 	raw, err := ioutil.ReadFile(tpl.path)
 	if err != nil {
-		logger.Info(err)
+		logger.Error(err)
 		return err
 	}
 
@@ -166,11 +166,11 @@ func (tpl *Tpl) readRaw() error {
 
 func (tpl *Tpl) checkSection(sections map[string]*Section) error {
 	idx := bytes.Index(tpl.raw, []byte("@section"))
-	if idx > 0 {
+	if idx >= 0 {
 		left := tpl.raw[idx+len("@section"):]
 		idx_1 := bytes.Index(left, []byte("("))
 		idx_2 := bytes.Index(left, []byte(")"))
-		if idx_1 > 0 && idx_2 > 0 {
+		if idx_1 >= 0 && idx_2 >= 0 {
 			name := string(bytes.TrimSpace(left[:idx_1]))
 			tpl.raw = tpl.raw[:idx]
 			left_1 := left[idx_2+1:]
@@ -235,7 +235,7 @@ func genSection(input string) (map[string]*Section, error) {
 
 		raw, err := ioutil.ReadFile(path)
 		if err != nil {
-			logger.Info(err)
+			logger.Error(err)
 			return nil, err
 		}
 
@@ -261,7 +261,7 @@ func fmtCode(output string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		logger.Info("gofmt: ", err)
+		logger.Error("gofmt: ", err)
 		return err
 	}
 	return nil

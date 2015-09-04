@@ -2,10 +2,10 @@ package gotpl
 
 import (
 	"fmt"
+	"github.com/codinl/go-logger"
+	"os"
 	"path/filepath"
 	"strings"
-	"os"
-	"github.com/codinl/go-logger"
 )
 
 func Generate(input string, output string, option Option) error {
@@ -16,6 +16,7 @@ func Generate(input string, output string, option Option) error {
 
 	sections, err := genSection(input)
 	if err != nil {
+		logger.Error(err)
 		return err
 	}
 
@@ -23,6 +24,7 @@ func Generate(input string, output string, option Option) error {
 
 	paths, err := getFiles(input, TPL_EXT)
 	if err != nil {
+		logger.Error(err)
 		return err
 	}
 
@@ -35,13 +37,13 @@ func Generate(input string, output string, option Option) error {
 		tpl := &Tpl{
 			path: path, name: name,
 			ast: &Ast{}, tokens: []Token{},
-			blocks: map[string]*Ast{}, outDir:output,
+			blocks: map[string]*Ast{}, outDir: output,
 			option: option,
 		}
 
 		err := tpl.readRaw()
 		if err != nil {
-			logger.Info(err)
+			logger.Error(err)
 			return err
 		}
 
@@ -49,9 +51,11 @@ func Generate(input string, output string, option Option) error {
 
 		err = tpl.checkExtends()
 		if err != nil {
-			logger.Info(err)
+			logger.Error(err)
 			return err
 		}
+
+		logger.Debug(tpl.name, " after checkExtends tpl.raw", string(tpl.raw))
 
 		tplMap[tpl.name] = tpl
 	}
@@ -69,20 +73,21 @@ func Generate(input string, output string, option Option) error {
 
 	err = os.RemoveAll(output)
 	if err != nil {
-		logger.Info(err)
+		logger.Error(err)
 		return err
 	}
 
 	for _, tpl := range tplMap {
 		err = tpl.generate()
 		if err != nil {
-			logger.Info(err)
+			logger.Error(err)
 			return err
 		}
 	}
 
 	err = fmtCode(output)
 	if err != nil {
+		logger.Error(err)
 		return err
 	}
 
