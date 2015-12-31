@@ -12,13 +12,13 @@ import (
 	"fmt"
 )
 
-func Generate(input string, output string, option Option) error {
+func Generate(inDir string, outDir string, option Option) error {
 	err := initLogger()
 	if err != nil {
 		panic("initLogger fail")
 	}
 
-	sections, err := genSection(input)
+	sections, err := genSection(inDir)
 	if err != nil {
 		logger.Error(err)
 		return err
@@ -26,7 +26,7 @@ func Generate(input string, output string, option Option) error {
 
 	tplMap := map[string]*Tpl{}
 
-	paths, err := getFiles(input, TPL_EXT)
+	paths, err := getFiles(inDir, TPL_EXT)
 	if err != nil {
 		logger.Error(err)
 		return err
@@ -41,7 +41,7 @@ func Generate(input string, output string, option Option) error {
 		tpl := &Tpl{
 			path: path, name: name,
 			ast: &Ast{}, tokens: []Token{},
-			blocks: map[string]*Ast{}, outDir: output,
+			blocks: map[string]*Ast{}, outDir: outDir,
 			option: option,
 		}
 
@@ -78,7 +78,7 @@ func Generate(input string, output string, option Option) error {
 	}
 
 	// clean output direct
-	err = os.RemoveAll(output)
+	err = os.RemoveAll(outDir)
 	if err != nil {
 		logger.Error(err)
 	}
