@@ -91,6 +91,12 @@ func Generate(inDir string, outDir string, option Option) error {
 		}
 	}
 
+	err = fmtCode(outDir)
+	if err != nil {
+		logger.Error(err)
+		return err
+	}
+
 	return nil
 }
 
