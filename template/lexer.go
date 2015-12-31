@@ -90,18 +90,11 @@ func (lexer *Lexer) Scan() ([]Token, error) {
 			}
 		}
 		token.Line, token.Pos = line, pos
-
 		tokens = append(tokens, token)
-
 		cur += len(token.Text)
 		if token.Type == NEWLINE {
-			// 避免重复多余的空行
-//			if line == 0 || (line > 0 && tokens[line-1].Type != NEWLINE) {
-//				tokens = append(tokens, token)
-//			}
 			line, pos = line+1, 0
 		} else {
-			tokens = append(tokens, token)
 			pos += len(token.Text)
 		}
 	}

@@ -222,7 +222,6 @@ func (tpl *Tpl) checkExtends() error {
 func genSection(input string) (map[string]*Section, error) {
 	dir := input + SEC_DIR
 	if !exists(dir) {
-		logger.Info("no section dir")
 		return nil, nil
 	}
 
