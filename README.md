@@ -1,5 +1,6 @@
 # gotpl
-go语言模板引擎。基于[gorazor](https://github.com/sipin/gorazor)开发。
+go语言模板引擎。
+只需要掌握三个关键字：@extends,@block,@section,其他都是go语言的关键字。真的不能再简单了。
 
 # 特性
 * 简洁优雅
@@ -36,7 +37,7 @@ go语言模板引擎。基于[gorazor](https://github.com/sipin/gorazor)开发�
 }
 ```
 
-# 模板继承（extends，block）
+# 模板继承（@extends，@block）
 base.tpl :
 ```
 @{
@@ -84,7 +85,7 @@ child.tpl :
 
 关键字 "extends base", child.tpl继承base.tpl。模板继承方式，类似django，通过覆盖block。如覆盖base里面的bb，cc块。
 
-# 模块组件（section）
+# 模块组件（@section）
 base.tpl :
 ```
 @{
