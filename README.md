@@ -1,6 +1,7 @@
 # gotpl
-go语言模板引擎。
-只需要掌握三个关键字：@extends,@block,@section,其他都是go语言的关键字。真的不能再简单了。
+* go语言模板引擎。
+* 通过”代码生成“方式，把模板文件(tpl/*.html), 生成为go源码(gen/*.go)，最后项目编译运行的都是go文件。
+* 只需要掌握三个关键字：@extends,@block,@section,其他都是go语言的关键字。真的不能再简单了。
 
 # 特性
 * 简洁优雅
@@ -83,7 +84,7 @@ child.tpl :
 }
 ```
 
-关键字 "extends base", child.tpl继承base.tpl。模板继承方式，类似django，通过覆盖block。如覆盖base里面的bb，cc块。
+语句 "@extends base", 意思是child.html继承base.html。模板继承方式，类似django，通过覆盖block。如覆盖base里面的bb，cc块。
 
 # 模块组件（@section）
 base.tpl :
