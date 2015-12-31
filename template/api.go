@@ -1,19 +1,14 @@
 package gotpl
 
 import (
-	"fmt"
 	"github.com/codinl/go-logger"
 	"os"
 	"path/filepath"
 	"strings"
+	"errors"
 )
 
 func Generate(input string, output string, option Option) error {
-	err := initLogger()
-	if err != nil {
-		panic("initLogger fail")
-	}
-
 	sections, err := genSection(input)
 	if err != nil {
 		logger.Error(err)
@@ -58,6 +53,10 @@ func Generate(input string, output string, option Option) error {
 		tplMap[tpl.name] = tpl
 	}
 
+	if len(tplMap) == 0 {
+		return errors.New("tpl is empty")
+	}
+
 	for key, tpl := range tplMap {
 		if !tpl.isRoot {
 			if p, ok := tplMap[tpl.parentName]; ok {
@@ -69,10 +68,10 @@ func Generate(input string, output string, option Option) error {
 		}
 	}
 
+	// clean output direct
 	err = os.RemoveAll(output)
 	if err != nil {
 		logger.Error(err)
-		return err
 	}
 
 	for _, tpl := range tplMap {
@@ -89,15 +88,5 @@ func Generate(input string, output string, option Option) error {
 		return err
 	}
 
-	return nil
-}
-
-func initLogger() error {
-	err := logger.Init("./log", "gotpl.log", logger.DEBUG)
-	if err != nil {
-		fmt.Println("logger init error err=", err)
-		return err
-	}
-	logger.SetConsole(true)
 	return nil
 }

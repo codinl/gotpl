@@ -12,20 +12,20 @@ import (
 	"time"
 )
 
-func HTMLEscape(m interface{}) string {
+func escapeHtml(m interface{}) string {
 	s := fmt.Sprint(m)
 	return template.HTMLEscapeString(s)
 }
 
-func StrTime(timestamp int64, format string) string {
+func timeToStr(timestamp int64, format string) string {
 	return time.Unix(timestamp, 0).Format(format)
 }
 
-func Itoa(obj int) string {
+func itoa(obj int) string {
 	return strconv.Itoa(obj)
 }
 
-func Capitalize(str string) string {
+func capitalize(str string) string {
 	if len(str) == 0 {
 		return ""
 	}

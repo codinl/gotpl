@@ -1,7 +1,6 @@
 package gotpl
 
 import (
-	"fmt"
 	"github.com/codinl/go-logger"
 	"regexp"
 )
@@ -134,9 +133,9 @@ func (ast *Ast) debug(depth int, max int) {
 		return
 	}
 	for i := 0; i < depth; i++ {
-		fmt.Printf("%c", '-')
+		logger.Infof("%c", '-')
 	}
-	fmt.Printf("TagName: %s Mode: %s Children: %d [[ \n", ast.TagName, ast.ModeStr(), len(ast.Children))
+	logger.Infof("TagName: %s Mode: %s Children: %d [[ \n", ast.TagName, ast.ModeStr(), len(ast.Children))
 	for _, a := range ast.Children {
 		if _, ok := a.(*Ast); ok {
 			b := (*Ast)(a.(*Ast))
@@ -145,14 +144,14 @@ func (ast *Ast) debug(depth int, max int) {
 			if depth+1 < max {
 				t := (Token)(a.(Token))
 				for i := 0; i < depth+1; i++ {
-					fmt.Printf("%c", '-')
+					logger.Infof("%c", '-')
 				}
 				t.debug()
 			}
 		}
 	}
 	for i := 0; i < depth; i++ {
-		fmt.Printf("%c", '-')
+		logger.Infof("%c", '-')
 	}
 
 	logger.Info("]]")

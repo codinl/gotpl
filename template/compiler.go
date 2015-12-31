@@ -94,6 +94,7 @@ func (cp *Compiler) visitAst(ast *Ast) {
 			}
 		}
 	case EXP:
+//		logger.Debug("visit EXP")
 		cp.firstNode = true
 		nonExp := ast.hasNonExp()
 		for i, c := range ast.Children {
@@ -118,23 +119,22 @@ func (cp *Compiler) visitToken(child interface{}, ast *Ast) {
 	cp.addPart(Part{PART_TOKEN, getValStr(child)})
 }
 
-func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, isHomo bool) {
+func (cp *Compiler) visitExp(child interface{}, parent *Ast, idx int, hasNoneExp bool) {
 	start := ""
 	end := ""
 	ppNotExp := true
 	ppChildCnt := len(parent.Children)
-	//	pack := cp.dir
 	htmlEsc := cp.options["htmlEscape"]
 	if parent.Parent != nil && parent.Parent.Mode == EXP {
 		ppNotExp = false
 	}
 	val := getValStr(child)
 	if htmlEsc == nil {
-		if ppNotExp && idx == 0 && isHomo {
+		if ppNotExp && idx == 0 && hasNoneExp {
 			start += "gotpl.HTMLEscape("
-			cp.imports[Namespace] = true
+			cp.imports[NAME_SPACE] = true
 		}
-		if ppNotExp && idx == ppChildCnt-1 && isHomo {
+		if ppNotExp && idx == ppChildCnt-1 && hasNoneExp {
 			end += ")"
 		}
 	}
@@ -241,8 +241,9 @@ func (cp *Compiler) addPart(part Part) {
 func (cp *Compiler) genPart() {
 	res := ""
 	for _, p := range cp.parts {
+//		logger.Debugf("p.Type=%d, p.value=%s", p.Type, p.value)
 		if p.Type == PART_MKP && p.value != "" {
-			// do some escapings
+			// do some capitalize
 			for strings.HasSuffix(p.value, "\n") {
 				p.value = p.value[:len(p.value)-1]
 			}
@@ -266,7 +267,7 @@ func (cp *Compiler) visit() {
 	// genPart() -> cp.buf
 	cp.genPart()
 
-	funcName := Capitalize(cp.fileName)
+	funcName := capitalize(cp.fileName)
 
 	cp.imports[`"bytes"`] = true
 	head := "package tpl\n\n import (\n"

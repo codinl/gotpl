@@ -52,26 +52,27 @@ func (tpl *Tpl) gen() error {
 
 	err := tpl.genToken()
 	if err != nil {
+		logger.Error(err)
 		return err
 	}
 
-	//	logger.Error(tpl.name, "------------------- TOKEN START -----------------")
-	//	for _, elem := range tpl.tokens {
-	//		elem.debug()
-	//	}
-	//	logger.Error(tpl.name, "--------------------- TOKEN END -----------------\n")
+//	logger.Error(tpl.name, "------------------- TOKEN START -----------------")
+//	for _, elem := range tpl.tokens {
+//		elem.debug()
+//	}
+//	logger.Error(tpl.name, "--------------------- TOKEN END -----------------\n")
 
 	err = tpl.genAst()
 	if err != nil {
 		return err
 	}
 
-	//	logger.Error(tpl.name, "--------------------- AST START -----------------")
-	//	tpl.ast.debug(0, 20)
-	//	logger.Error(tpl.name, "--------------------- AST END -----------------\n")
-	//	if tpl.ast.Mode != PRG {
-	//		panic("TYPE")
-	//	}
+//	logger.Error(tpl.name, "--------------------- AST START -----------------")
+//	tpl.ast.debug(0, 20)
+//	logger.Error(tpl.name, "--------------------- AST END -----------------\n")
+//	if tpl.ast.Mode != PRG {
+//		panic("TYPE")
+//	}
 
 	err = tpl.genResult()
 	if err != nil {
@@ -98,6 +99,7 @@ func (tpl *Tpl) genToken() error {
 
 	tokens, err := lex.Scan()
 	if err != nil {
+		logger.Error(err)
 		return err
 	}
 
@@ -220,11 +222,13 @@ func (tpl *Tpl) checkExtends() error {
 func genSection(input string) (map[string]*Section, error) {
 	dir := input + SEC_DIR
 	if !exists(dir) {
+		logger.Info("no section dir")
 		return nil, nil
 	}
 
 	paths, err := getFiles(dir, TPL_EXT)
 	if err != nil {
+		logger.Error(err)
 		return nil, err
 	}
 
@@ -271,13 +275,15 @@ func (tpl *Tpl) output() error {
 	if !exists(tpl.outDir) {
 		err := os.MkdirAll(tpl.outDir, 0755)
 		if err != nil {
+			logger.Error(err)
 			return err
 		}
 	}
 
-	outpath := tpl.outDir + tpl.name + ".go"
-	err := ioutil.WriteFile(outpath, []byte(tpl.result), 0644)
+	outPath := tpl.outDir + tpl.name + ".go"
+	err := ioutil.WriteFile(outPath, []byte(tpl.result), 0644)
 	if err != nil {
+		logger.Error(err)
 		return err
 	}
 	return nil
