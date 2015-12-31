@@ -39,9 +39,12 @@ func Generate(inDir string, outDir string, option Option) error {
 		name := strings.TrimSpace(strings.Replace(baseName, TPL_EXT, "", 1))
 
 		tpl := &Tpl{
-			path: path, name: name,
-			ast: &Ast{}, tokens: []Token{},
-			blocks: map[string]*Ast{}, outDir: outDir,
+			path: path,
+			name: name,
+			ast: &Ast{},
+			tokens: []Token{},
+			blocks: map[string]*Ast{},
+			outDir: outDir,
 			option: option,
 		}
 
