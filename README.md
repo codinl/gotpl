@@ -41,24 +41,26 @@ base.tpl :
 ```
 @{
     import()
-    var curPage int
+    var val int
 }
 
 <html>
-
+<body>
 @block aa {
-    aaaa
+    <div>base aa content</div>
 
     @block bb {
-        bbb
+        <div>"base bb content"</div>
     }
 
     @block cc {
-        ccc
+        <div>base cc content</div>
     }
 }
 
-@section Pagination(curPage int)
+@section TestSection(val int)
+
+</body>
 
 </html>
 
@@ -70,7 +72,7 @@ child.tpl :
 @extends base
 
 @block bb {
-    "this is content: extends bbb"
+    <div>child bb block content.</div>
 }
 
 @block cc {
@@ -87,32 +89,35 @@ base.tpl :
 ```
 @{
     import()
-    var curPage int
+    var val int
 }
 
 <html>
-
+<body>
 @block aa {
-    aaaa
+    <div>base aa content</div>
 
     @block bb {
-        bbb
+        <div>"base bb content"</div>
     }
 
     @block cc {
-        ccc
+        <div>base cc content</div>
     }
 }
 
-@section Pagination(curPage int)
+@section TestSection(val int)
+
+</body>
 
 </html>
+
 ```
 
-sections/page.tpl:
+sections/test_section.tpl:
 ```
-@section Pagination(curPage int) {
-    <div>curPage is: @curPage </div>
+@section TestSection(val int) {
+    <div>this is TestSection content. Param "val" is: @val </div>
 }
 ```
 
