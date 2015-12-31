@@ -8,11 +8,16 @@ import (
 	"errors"
 	"strconv"
 	"time"
-"html/template"
+	"html/template"
 	"fmt"
 )
 
 func Generate(input string, output string, option Option) error {
+	err := initLogger()
+	if err != nil {
+		panic("initLogger fail")
+	}
+
 	sections, err := genSection(input)
 	if err != nil {
 		logger.Error(err)
@@ -86,12 +91,6 @@ func Generate(input string, output string, option Option) error {
 		}
 	}
 
-	err = fmtCode(output)
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
-
 	return nil
 }
 
@@ -106,4 +105,14 @@ func TimeToStr(timestamp int64, format string) string {
 
 func Itoa(obj int) string {
 	return strconv.Itoa(obj)
+}
+
+func initLogger() error {
+	err := logger.Init("./log", "gotpl.log", logger.DEBUG)
+	if err != nil {
+		fmt.Println("logger init error err=", err)
+		return err
+	}
+	logger.SetConsole(true)
+	return nil
 }
