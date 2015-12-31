@@ -1,5 +1,11 @@
 @extends base
 
-@block base {
-    child
+@block bb {
+    <div>child bb block content.</div>
+}
+
+@block cc {
+    @for i:=0;i<10;i++ {
+        <p>@i</p>
+    }
 }
