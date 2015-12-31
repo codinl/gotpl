@@ -6,6 +6,10 @@ import (
 	"path/filepath"
 	"strings"
 	"errors"
+	"strconv"
+	"time"
+"html/template"
+	"fmt"
 )
 
 func Generate(input string, output string, option Option) error {
@@ -89,4 +93,17 @@ func Generate(input string, output string, option Option) error {
 	}
 
 	return nil
+}
+
+func HTMLEscape(m interface{}) string {
+	s := fmt.Sprint(m)
+	return template.HTMLEscapeString(s)
+}
+
+func TimeToStr(timestamp int64, format string) string {
+	return time.Unix(timestamp, 0).Format(format)
+}
+
+func Itoa(obj int) string {
+	return strconv.Itoa(obj)
 }

@@ -6,6 +6,6 @@ import (
 
 func Base() []byte {
 	var _buffer bytes.Buffer
-	_buffer.WriteString("\n\naaa")
+	_buffer.WriteString("@{{\n}}\n@block  basebase  {{}}\n\naaaaaa")
 	return _buffer.Bytes()
 }

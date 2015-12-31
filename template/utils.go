@@ -1,29 +1,12 @@
 package gotpl
 
 import (
-	"fmt"
-	"html/template"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
-	"time"
 )
-
-func escapeHtml(m interface{}) string {
-	s := fmt.Sprint(m)
-	return template.HTMLEscapeString(s)
-}
-
-func timeToStr(timestamp int64, format string) string {
-	return time.Unix(timestamp, 0).Format(format)
-}
-
-func itoa(obj int) string {
-	return strconv.Itoa(obj)
-}
 
 func capitalize(str string) string {
 	if len(str) == 0 {
